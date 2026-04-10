@@ -1,0 +1,167 @@
+<?php
+require_once __DIR__ . '/auth.php';
+require_login();
+require_access('collection');
+require __DIR__ . '/db.php';
+$user = current_user();
+
+// Auto-update overdue statuses for receivables before reporting
+$mysqli->query("UPDATE accountsreceivable SET status='overdue' WHERE status='pending' AND due_date < CURDATE()");
+
+$rows = [];$totals = ['pending'=>0,'paid'=>0,'overdue'=>0];
+// Compute totals across all AR
+if ($res = $mysqli->query("SELECT status, amount_due FROM accountsreceivable")) {
+	while ($row = $res->fetch_assoc()) {
+		$st = strtolower((string)($row['status'] ?? ''));
+		$amt = (float)($row['amount_due'] ?? 0);
+		if ($st === 'paid') {
+			$totals['paid'] += $amt;
+		} elseif ($st === 'overdue') {
+			$totals['overdue'] += $amt;
+		} else {
+			$totals['pending'] += $amt;
+		}
+	}
+	$res->free();
+}
+// Table filter: all | pending | paid | overdue (default: all)
+$statusFilter = strtolower(trim($_GET['status'] ?? 'all'));
+if (!in_array($statusFilter, ['all','pending','paid','overdue'], true)) { $statusFilter = 'all'; }
+$whereAr = ($statusFilter === 'all') ? '' : (" WHERE ar.status='".$mysqli->real_escape_string($statusFilter)."'");
+// Pull AR (inflows)
+if ($res = $mysqli->query("SELECT ar.ar_id, ar.user_id, u.name AS user_name, ar.amount_due, ar.due_date, ar.method, ar.status FROM accountsreceivable ar LEFT JOIN users u ON u.user_id = ar.user_id".$whereAr." ORDER BY ar.due_date ASC, ar.ar_id DESC LIMIT 200")) {
+	while ($row = $res->fetch_assoc()) { $row['source'] = 'AR'; $rows[] = $row; }
+	$res->free();
+}
+// Pull AP (outflows) - treat as 'AP' source, skip when filtering 'overdue'
+if ($statusFilter === 'all' || $statusFilter === 'pending' || $statusFilter === 'paid') {
+	$whereAp = ($statusFilter === 'all') ? '' : (" WHERE ap.status='".$mysqli->real_escape_string($statusFilter)."'");
+	if ($res = $mysqli->query("SELECT ap.ap_id, ap.user_id, u.name AS user_name, ap.amount_due, ap.due_date, ap.method, ap.status FROM accountspayable ap LEFT JOIN users u ON u.user_id = ap.user_id".$whereAp." ORDER BY ap.due_date ASC, ap.ap_id DESC LIMIT 200")) {
+		while ($row = $res->fetch_assoc()) { $row['source'] = 'AP'; $rows[] = $row; }
+		$res->free();
+	}
+}
+// Sort combined by due_date ASC, then newest id DESC
+usort($rows, function($a, $b){
+	$da = strtotime((string)($a['due_date'] ?? ''));
+	$db = strtotime((string)($b['due_date'] ?? ''));
+	if ($da === $db) {
+		$ida = (int)($a['ar_id'] ?? $a['ap_id'] ?? 0);
+		$idb = (int)($b['ar_id'] ?? $b['ap_id'] ?? 0);
+		return $idb <=> $ida;
+	}
+	return $da <=> $db;
+});
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Collection - TNVS</title>
+	<link rel="stylesheet" href="style.css">
+</head>
+<body>
+	<div id="app" class="app">
+		<header class="app-header">
+			<button id="menuToggle" class="icon-btn" aria-label="Toggle menu"><span></span><span></span><span></span></button>
+			<div class="brand" role="img" aria-label="TNVS Finance System">
+				<svg viewBox="0 0 120 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+					<text x="10" y="16" font-size="16" font-weight="800" letter-spacing="0.5" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" fill="currentColor">SAKAYSAYA</text>
+				</svg>
+			</div>
+			<div class="user">
+				<span id="currentUser">Welcome, <?php echo htmlspecialchars($user['name']); ?></span>
+				<a class="text-btn" href="logout.php">Logout</a>
+			</div>
+		</header>
+		<nav id="sidebar" class="sidebar">
+			<div class="group">
+				<h4>Main</h4>
+				<a class="nav" href="dashboard.php"><span>Dashboard</span></a>
+			</div>
+			<div class="group">
+				<h4>Accounts Management</h4>
+				<a class="nav" href="ledger.php"><span>General Ledger</span></a>
+				<a class="nav" href="accounts_receivable.php"><span>Accounts Receivable</span></a>
+				<a class="nav" href="accounts_payable.php"><span>Accounts Payable</span></a>
+			</div>
+			<div class="group">
+				<h4>Financial Operations</h4>
+				<a class="nav" href="disbursement.php"><span>Disbursement</span></a>
+				<a class="nav active" href="collection.php"><span>Collection</span></a>
+			</div>
+			<div class="group">
+				<h4>Administrative System</h4>
+				<?php if ((($user['role'] ?? '') === 'admin')): ?>
+				<a class="nav" href="users.php"><span>Users</span></a>
+				<?php endif; ?>
+			</div>
+			<div class="group">
+				
+			</div>
+			<!-- Sidebar profile at bottom -->
+			<div style="margin-top:auto;padding:16px;">
+				<a href="profile.php" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
+					<?php $cu = isset($user)? $user : (isset($_SESSION['user'])? $_SESSION['user'] : null); $nm = htmlspecialchars($cu['name'] ?? 'User'); $initial = strtoupper(substr($nm,0,1)); $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#d9d9d9"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-family="Segoe UI, Arial" font-size="64" fill="#555">'.$initial.'</text></svg>'; $src = 'data:image/svg+xml;charset=utf-8,' . rawurlencode($svg); ?>
+					<img src="<?php echo $src; ?>" alt="avatar" style="width:40px;height:40px;border-radius:50%;object-fit:cover;background:#ddd;flex:0 0 auto;" />
+					<div style="font-size:14px;line-height:1;">
+						<div style="font-weight:700"><?php echo $nm; ?></div>
+						<div style="font-size:12px;color:#666"><?php echo htmlspecialchars($cu['email'] ?? ''); ?></div>
+					</div>
+				</a>
+			</div>
+		</nav>
+		<div id="overlay" class="overlay"></div>
+		<main class="content" id="mainContent">
+			<section class="section active">
+				<h3>Collection</h3>
+				<div class="cards">
+					<div class="card success">
+						<h4>Paid</h4>
+						<div class="big">₱<?php echo number_format($totals['paid'] ?? 0, 2); ?></div>
+					</div>
+					<div class="card warning">
+						<h4>Pending</h4>
+						<div class="big">₱<?php echo number_format($totals['pending'] ?? 0, 2); ?></div>
+					</div>
+					<div class="card">
+						<h4>Overdue</h4>
+						<div class="big">₱<?php echo number_format($totals['overdue'] ?? 0, 2); ?></div>
+					</div>
+				</div>
+				<div class="chart-card">
+					<h4>Collections</h4>
+					<div style="margin:10px 0; display:flex; gap:8px; flex-wrap:wrap;">
+						<a class="btn-small" href="collection.php" style="<?php echo ($statusFilter==='all')?'background:#28a745;color:#fff;':''; ?>">All</a>
+						<a class="btn-small" href="collection.php?status=pending" style="<?php echo ($statusFilter==='pending')?'background:#f0ad4e;color:#fff;':''; ?>">Pending</a>
+						<a class="btn-small" href="collection.php?status=overdue" style="<?php echo ($statusFilter==='overdue')?'background:#dc3545;color:#fff;':''; ?>">Overdue</a>
+						<a class="btn-small" href="collection.php?status=paid" style="<?php echo ($statusFilter==='paid')?'background:#28a745;color:#fff;':''; ?>">Paid</a>
+					</div>
+					<div class="table-wrap">
+						<table class="table">
+							<thead><tr><th>ID</th><th>Source</th><th>User</th><th>Amount</th><th>Due Date</th><th>Type</th><th>Status</th></tr></thead>
+							<tbody>
+							<?php foreach ($rows as $r): ?>
+								<tr>
+								<td><?php echo (int)($r['ar_id'] ?? $r['ap_id'] ?? 0); ?></td>
+								<td><?php echo htmlspecialchars($r['source'] ?? ''); ?></td>
+								<td><?php echo htmlspecialchars(($r['user_name'] ?? '') !== '' ? $r['user_name'] : (string)(int)$r['user_id']); ?></td>
+								<?php $amount = (float)($r['amount_due'] ?? 0); if (($r['source'] ?? '') === 'AP') { $amount = -$amount; } ?>
+								<td>₱<?php echo number_format($amount, 2); ?></td>
+								<td><?php echo htmlspecialchars($r['due_date']); ?></td>
+								<td><?php echo htmlspecialchars(str_replace('_',' ', $r['method'] ?? '')); ?></td>
+								<td><?php $st = strtolower((string)($r['status'] ?? '')); $cls = $st === 'paid' ? 'status-paid' : ($st === 'overdue' ? 'status-overdue' : 'status-pending'); ?><span class="badge <?php echo $cls; ?>"><?php echo htmlspecialchars($r['status']); ?></span></td>
+								</tr>
+								<?php endforeach; ?>
+							<?php if (empty($rows)): ?><tr><td colspan="7">No receivables or payables found.</td></tr><?php endif; ?>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+		</main>
+	</div>
+	<script src="app.js"></script>
+</body>
+</html>
