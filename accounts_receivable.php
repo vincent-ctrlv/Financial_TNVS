@@ -133,58 +133,16 @@ if ($res = $mysqli->query("SELECT ar.ar_id, ar.user_id, u.name AS user_name, ar.
 </head>
 <body>
 	<div id="app" class="app">
-		<header class="app-header">
-			<button id="menuToggle" class="icon-btn" aria-label="Toggle menu"><span></span><span></span><span></span></button>
-			<div class="brand" role="img" aria-label="TNVS Finance System">
-				<svg viewBox="0 0 120 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-					<text x="10" y="16" font-size="16" font-weight="800" letter-spacing="0.5" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" fill="currentColor">SAKAYSAYA</text>
-				</svg>
-			</div>
-			<div class="user">
-				<span id="currentUser">Welcome, <?php echo htmlspecialchars($user['name']); ?></span>
-				<a class="text-btn" href="logout.php">Logout</a>
-			</div>
-		</header>
-		<nav id="sidebar" class="sidebar">
-			<div class="group">
-				<h4>Main</h4>
-				<a class="nav" href="dashboard.php"><span>Dashboard</span></a>
-			</div>
-			<div class="group">
-				<h4>Accounts Management</h4>
-				<a class="nav" href="ledger.php"><span>General Ledger</span></a>
-				<a class="nav active" href="accounts_receivable.php"><span>Accounts Receivable</span></a>
-				<a class="nav" href="accounts_payable.php"><span>Accounts Payable</span></a>
-			</div>
-			<div class="group">
-				<h4>Financial Operations</h4>
-				<a class="nav" href="disbursement.php"><span>Disbursement</span></a>
-				<a class="nav" href="collection.php"><span>Collection</span></a>
-			</div>
-			<div class="group">
-				<h4>Administrative System</h4>
-				<?php if ((($user['role'] ?? '') === 'admin')): ?>
-				<a class="nav" href="users.php"><span>Users</span></a>
-				<?php endif; ?>
-			</div>
-            <div style="margin-top:auto;padding:16px;">
-                <a href="profile.php" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
-                    <?php $cu = isset($user)? $user : (isset($_SESSION['user'])? $_SESSION['user'] : null); $nm = htmlspecialchars($cu['name'] ?? 'User'); $initial = strtoupper(substr($nm,0,1)); $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#d9d9d9"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-family="Segoe UI, Arial" font-size="64" fill="#555">'.$initial.'</text></svg>'; $src = 'data:image/svg+xml;charset=utf-8,' . rawurlencode($svg); ?>
-                    <img src="<?php echo $src; ?>" alt="avatar" style="width:40px;height:40px;border-radius:50%;object-fit:cover;background:#ddd;flex:0 0 auto;" />
-                    <div style="font-size:14px;line-height:1;">
-                        <div style="font-weight:700"><?php echo $nm; ?></div>
-                        <div style="font-size:12px;color:#666"><?php echo htmlspecialchars($cu['email'] ?? ''); ?></div>
-                    </div>
-                </a>
-            </div>
-		</nav>
+		<?php include 'header.php'; ?>
+		<?php include 'sidebar.php'; ?>
+
 		<div id="overlay" class="overlay"></div>
 		<main class="content" id="mainContent">
 			<section class="section active">
 				<h3>Accounts Receivable</h3>
 				<div class="table-wrap">
 					<table class="table">
-						<thead><tr><th>ID</th><th>User</th><th>Amount Due</th><th>Due Date</th><th>Type</th><th>Status</th></tr></thead>
+						<thead><tr><th>ID</th><th>User</th><th>Amount Due</th><th>Due Date</th><th>Type</th><th>Status</th><th>Actions</th></tr></thead>
 						<tbody>
 							<?php foreach ($ar as $r): ?>
 							<tr>
@@ -195,23 +153,31 @@ if ($res = $mysqli->query("SELECT ar.ar_id, ar.user_id, u.name AS user_name, ar.
                                 <td><?php echo htmlspecialchars(ucwords(str_replace('_',' ', (string)($r['method'] ?? '')))); ?></td>
                                 <td>
                                     <?php $st = strtolower((string)($r['status'] ?? '')); $cls = $st === 'paid' ? 'status-paid' : ($st === 'overdue' ? 'status-overdue' : 'status-pending'); ?>
+                                    <span class="badge <?php echo $cls; ?>"><?php echo htmlspecialchars($r['status']); ?></span>
+                                </td>
+                                <td class="actions-cell">
                                     <?php if ($editArId === (int)$r['ar_id'] && in_array(($user['role'] ?? ''), ['admin','finance_staff'], true)): ?>
-                                        <form method="post" style="display:inline-block;">
+                                        <form method="post" style="display:flex; gap:4px; justify-content: flex-start;">
                                             <?php echo csrf_field(); ?>
                                             <input type="hidden" name="action" value="update_status">
                                             <input type="hidden" name="ar_id" value="<?php echo (int)$r['ar_id']; ?>">
-                                            <select name="status" class="input" style="width:auto;">
+                                            <select name="status" class="input" style="width:auto; padding:4px 8px; font-size:12px;">
                                                 <option value="pending" <?php echo ($st==='pending')?'selected':''; ?>>Pending</option>
                                                 <option value="paid" <?php echo ($st==='paid')?'selected':''; ?>>Paid</option>
                                                 <option value="overdue" <?php echo ($st==='overdue')?'selected':''; ?>>Overdue</option>
                                             </select>
-                                            <button class="btn-small" type="submit">Save</button>
-                                            <a class="btn-small" href="accounts_receivable.php">Cancel</a>
+                                            <button class="icon-btn" type="submit" title="Save" style="color:var(--success)">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                            </button>
+                                            <a class="icon-btn" href="accounts_receivable.php" title="Cancel" style="color:var(--danger)">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                            </a>
                                         </form>
                                     <?php else: ?>
-                                        <span class="badge <?php echo $cls; ?>"><?php echo htmlspecialchars($r['status']); ?></span>
                                         <?php if (in_array(($user['role'] ?? ''), ['admin','finance_staff'], true)): ?>
-                                            <a class="btn-small" style="margin-left:8px;" href="accounts_receivable.php?edit_ar_id=<?php echo (int)$r['ar_id']; ?>">Edit</a>
+                                            <a class="icon-btn" href="accounts_receivable.php?edit_ar_id=<?php echo (int)$r['ar_id']; ?>" title="Edit Status">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                                            </a>
                                         <?php endif; ?>
                                     <?php endif; ?>
                                 </td>

@@ -32,7 +32,8 @@ CREATE TABLE `accountspayable` (
   `user_id` int(11) DEFAULT NULL,
   `amount_due` decimal(10,2) DEFAULT NULL,
   `due_date` date DEFAULT NULL,
-  `status` enum('pending','paid') DEFAULT NULL
+  `status` enum('pending','paid','overdue') DEFAULT NULL,
+  `method` enum('cash','gcash','bank_transfer') DEFAULT 'cash'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -46,7 +47,8 @@ CREATE TABLE `accountsreceivable` (
   `user_id` int(11) DEFAULT NULL,
   `amount_due` decimal(10,2) DEFAULT NULL,
   `due_date` date DEFAULT NULL,
-  `status` enum('pending','paid','overdue') DEFAULT NULL
+  `status` enum('pending','paid','overdue') DEFAULT NULL,
+  `method` enum('cash','gcash','bank_transfer') DEFAULT 'cash'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------

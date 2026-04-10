@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/auth.php';
 require_login();
+require_access('profile');
 require __DIR__ . '/db.php';
 $sessionUser = current_user();
 
@@ -10,16 +11,14 @@ function users_has_column(mysqli $mysqli, string $column): bool {
 }
 
 $hasAddress = users_has_column($mysqli, 'address');
-// Ensure avatar column exists
 if (!users_has_column($mysqli, 'avatar')) { $mysqli->query("ALTER TABLE users ADD COLUMN avatar VARCHAR(255) NULL"); }
 
 $success = '';$error = '';
-
-// Load fresh user row from DB
 $uid = (int)($sessionUser['id'] ?? 0);
 $userRow = null;
-if ($uid) {
-    $sel = $hasAddress ? 'user_id, name, email, role, plate_no, reference_no, address, created_at' : 'user_id, name, email, role, plate_no, reference_no, created_at';
+
+if ($uid > 0) {
+    $sel = $hasAddress ? 'user_id, name, email, role, plate_no, reference_no, address, avatar, created_at' : 'user_id, name, email, role, plate_no, reference_no, avatar, created_at';
     if ($stmt = $mysqli->prepare("SELECT $sel FROM users WHERE user_id = ? LIMIT 1")) {
         $stmt->bind_param('i', $uid);
         $stmt->execute();
@@ -29,19 +28,18 @@ if ($uid) {
     }
 }
 
+// Fallback to session if not in DB or query failed
 if (!$userRow) {
-    // If there's no DB row but a session user exists (for example the test 'Admin' login),
-    // fall back to session values so the admin can still view and edit a profile-like page.
     if ($sessionUser) {
         $userRow = [
-            'user_id' => (int)($sessionUser['id'] ?? 0),
+            'user_id' => $uid,
             'name' => $sessionUser['name'] ?? 'User',
             'email' => $sessionUser['email'] ?? '',
             'role' => $sessionUser['role'] ?? '',
             'plate_no' => '',
             'reference_no' => '',
             'address' => '',
-            'avatar' => '',
+            'avatar' => $sessionUser['avatar'] ?? '',
             'created_at' => date('Y-m-d'),
         ];
     } else {
@@ -51,7 +49,6 @@ if (!$userRow) {
     }
 }
 
-// Handle update profile
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['do'] ?? '') === 'update_profile') {
     verify_csrf_or_die();
     $name = trim($_POST['name'] ?? '');
@@ -59,10 +56,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['do'] ?? '') === 'u
     $plate = trim($_POST['plate_no'] ?? '');
     $ref = trim($_POST['reference_no'] ?? '');
     $address = $hasAddress ? trim($_POST['address'] ?? '') : '';
-    if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+
+    if ($uid <= 0) {
+        $error = 'Unable to update profile: User record not found in database. Please log in again.';
+    } elseif ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = 'Please provide valid name and email.';
     } else {
-        // Ensure email is unique except self
         if ($stmt = $mysqli->prepare('SELECT 1 FROM users WHERE email = ? AND user_id <> ? LIMIT 1')) {
             $stmt->bind_param('si', $email, $uid);
             $stmt->execute(); $stmt->store_result();
@@ -70,7 +69,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['do'] ?? '') === 'u
             $stmt->close();
         }
         if ($error === '') {
-            // Handle avatar upload if provided (no GD dependency)
             $avatarPath = $userRow['avatar'] ?? '';
             if (isset($_FILES['avatar']) && is_uploaded_file($_FILES['avatar']['tmp_name'])) {
                 $dir = __DIR__ . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'avatars';
@@ -91,18 +89,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['do'] ?? '') === 'u
                 if ($stmt = $mysqli->prepare('UPDATE users SET name=?, email=?, plate_no=?, reference_no=?, address=?, avatar=? WHERE user_id=?')) {
                     $stmt->bind_param('ssssssi', $name, $email, $plate, $ref, $address, $avatarPath, $uid);
                     $ok = $stmt->execute(); $stmt->close();
-                    if ($ok) { $success = 'Profile updated.'; $_SESSION['user']['name'] = $name; $_SESSION['user']['email'] = $email; }
+                    if ($ok) { $success = 'Profile updated.'; $_SESSION['user']['name'] = $name; $_SESSION['user']['email'] = $email; $_SESSION['user']['avatar'] = $avatarPath; }
                     else { $error = 'Failed to update profile.'; }
                 } else { $error = 'Internal error (prepare with address).'; }
             } else {
                 if ($stmt = $mysqli->prepare('UPDATE users SET name=?, email=?, plate_no=?, reference_no=?, avatar=? WHERE user_id=?')) {
                     $stmt->bind_param('sssssi', $name, $email, $plate, $ref, $avatarPath, $uid);
                     $ok = $stmt->execute(); $stmt->close();
-                    if ($ok) { $success = 'Profile updated.'; $_SESSION['user']['name'] = $name; $_SESSION['user']['email'] = $email; }
+                    if ($ok) { $success = 'Profile updated.'; $_SESSION['user']['name'] = $name; $_SESSION['user']['email'] = $email; $_SESSION['user']['avatar'] = $avatarPath; }
                     else { $error = 'Failed to update profile.'; }
                 } else { $error = 'Internal error (prepare).'; }
             }
-            // Reload fresh
             if ($error === '') {
                 header('Location: profile.php?updated=1');
                 exit;
@@ -116,85 +113,92 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['do'] ?? '') === 'u
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profile - TNVS</title>
+    <title>Profile - SakaySaya</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .profile-container { max-width: 900px; margin: 0 auto; }
+        .profile-card { background: white; border-radius: 24px; padding: 40px; box-shadow: var(--shadow-md); border: 1px solid rgba(40,167,69,0.1); }
+        .profile-header-alt { display: flex; align-items: center; gap: 32px; margin-bottom: 40px; padding-bottom: 32px; border-bottom: 1px solid var(--panel); }
+        .avatar-preview { position: relative; width: 120px; height: 120px; }
+        .avatar-preview img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 4px solid var(--panel); box-shadow: var(--shadow-sm); }
+        .form-section-title { font-size: 14px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; }
+        .form-section-title::after { content: ''; flex: 1; height: 1px; background: rgba(40,167,69,0.1); }
+        .profile-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        @media (max-width: 640px) {
+            .profile-form-grid { grid-template-columns: 1fr; }
+            .profile-header-alt { flex-direction: column; text-align: center; }
+        }
+    </style>
 </head>
 <body>
     <div id="app" class="app">
-        <header class="app-header">
-            <button id="menuToggle" class="icon-btn" aria-label="Toggle menu"><span></span><span></span><span></span></button>
-            <div class="brand" role="img" aria-label="TNVS Finance System">
-                <svg viewBox="0 0 120 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <text x="10" y="16" font-size="16" font-weight="800" letter-spacing="0.5" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" fill="currentColor">SAKAYSAYA</text>
-                </svg>
-            </div>
-            <div class="user">
-                <span id="currentUser">Welcome, <?php echo htmlspecialchars($sessionUser['name']); ?></span>
-                <a class="text-btn" href="logout.php">Logout</a>
-            </div>
-        </header>
-        <nav id="sidebar" class="sidebar">
-            <div class="group">
-                <h4>Main</h4>
-                <a class="nav" href="dashboard.php"><span>Dashboard</span></a>
-            </div>
-            <div class="group">
-                <h4>Accounts Management</h4>
-                <a class="nav" href="ledger.php"><span>General Ledger</span></a>
-                <a class="nav" href="accounts_receivable.php"><span>Accounts Receivable</span></a>
-                <a class="nav" href="accounts_payable.php"><span>Accounts Payable</span></a>
-            </div>
-            <div class="group">
-                <h4>Financial Operations</h4>
-                <a class="nav" href="disbursement.php"><span>Disbursement</span></a>
-                <a class="nav" href="collection.php"><span>Collection</span></a>
-            </div>
-            <!-- Sidebar profile at bottom -->
-            <div style="margin-top:auto;padding:16px;">
-                <a href="profile.php" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
-                    <?php $nm = htmlspecialchars($sessionUser['name'] ?? 'User'); $initial = strtoupper(substr($nm,0,1)); $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#d9d9d9"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-family="Segoe UI, Arial" font-size="64" fill="#555">'.$initial.'</text></svg>'; $src = 'data:image/svg+xml;charset=utf-8,' . rawurlencode($svg); ?>
-                    <img src="<?php echo $src; ?>" alt="avatar" style="width:40px;height:40px;border-radius:50%;object-fit:cover;background:#ddd;flex:0 0 auto;" />
-                    <div style="font-size:14px;line-height:1;">
-                        <div style="font-weight:700"><?php echo $nm; ?></div>
-                        <div style="font-size:12px;color:#666"><?php echo htmlspecialchars($sessionUser['email'] ?? ''); ?></div>
-                    </div>
-                </a>
-            </div>
-        </nav>
+        <?php include 'header.php'; ?>
+        <?php include 'sidebar.php'; ?>
         <div id="overlay" class="overlay"></div>
         <main class="content" id="mainContent">
-            <section class="section active">
-                <h3>My Profile</h3>
-                <?php if ($success): ?><div class="notification success show" style="position:static;margin-bottom:16px;"><?php echo htmlspecialchars($success); ?></div><?php endif; ?>
-                <?php if ($error): ?><div class="notification danger show" style="position:static;margin-bottom:16px;"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
-                <div class="modal-card" style="display:block">
-                    <div class="modal-header">
-                        <h4 id="profileTitle">Profile of <?php echo htmlspecialchars($userRow['name']); ?></h4>
-                    </div>
-                    <div class="modal-body">
-                        <form method="post" class="form-grid" enctype="multipart/form-data">
+            <div class="profile-container">
+                <section class="section active">
+                    <h2 style="font-size: 32px; font-weight: 800; color: var(--primary); margin-bottom: 32px; letter-spacing: -1px;">My Profile</h2>
+                    <?php if ($success || isset($_GET['updated'])): ?><div class="notification success show" style="position:static; margin-bottom:24px; transform:none; max-width:none; width:100%;">Profile updated successfully.</div><?php endif; ?>
+                    <?php if ($error): ?><div class="notification danger show" style="position:static; margin-bottom:24px; transform:none; max-width:none; width:100%;"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
+                    <div class="profile-card">
+                        <form method="post" enctype="multipart/form-data">
                             <?php echo csrf_field(); ?>
                             <input type="hidden" name="do" value="update_profile" />
-                            <label>Full name<input type="text" name="name" value="<?php echo htmlspecialchars($userRow['name']); ?>" required></label>
-                            <label>Email<input type="email" name="email" value="<?php echo htmlspecialchars($userRow['email']); ?>" required></label>
-                            <label>Avatar<input type="file" name="avatar" accept="image/*"></label>
-                            <?php if ($hasAddress): ?>
-                            <label>Address<input type="text" name="address" value="<?php echo htmlspecialchars($userRow['address'] ?? ''); ?>"></label>
-                            <?php endif; ?>
+                            <div class="profile-header-alt">
+                                <div class="avatar-preview">
+                                    <?php
+                                    $u_avatar = $userRow['avatar'] ?? '';
+                                    $found = false;
+                                    if ($u_avatar && file_exists(__DIR__ . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $u_avatar))) {
+                                        $u_src = $u_avatar;
+                                        $found = true;
+                                    } else {
+                                        $u_initial = strtoupper(substr((string)$userRow['name'], 0, 1));
+                                        $u_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#28a745" fill-opacity="0.1"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-family="Segoe UI, Arial" font-size="64" fill="#28a745" font-weight="800">'.($u_initial?:'U').'</text></svg>';
+                                        $u_src = 'data:image/svg+xml;charset=utf-8,' . rawurlencode($u_svg);
+                                    }
+                                    ?>
+                                    <img src="<?php echo $u_src; ?>" alt="Profile avatar">
+                                </div>
+                                <div style="flex:1;">
+                                    <h3 style="font-size:24px; font-weight:800; color:var(--text); margin-bottom:8px;">Account Details</h3>
+                                    <p style="color:var(--muted); font-size:14px; margin-bottom:16px;">Update your photo and personal information here.</p>
+                                    <div style="display:flex; gap:10px; align-items:center;">
+                                        <input type="file" name="avatar" accept="image/*" style="font-size:13px;">
+                                        <?php if ($found): ?><span style="font-size:12px; color:var(--primary);">✓ Photo active</span><?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-section-title">Personal Information</div>
+                            <div class="profile-form-grid">
+                                <label style="display:grid; gap:8px; font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase;">Full Name
+                                    <input type="text" name="name" value="<?php echo htmlspecialchars($userRow['name'] ?? ''); ?>" required style="width:100%; background:#fff; border:1px solid #ddd; border-radius:12px; padding:12px 16px; font-size:14px; color:var(--text);"></label>
+                                <label style="display:grid; gap:8px; font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase;">Email Address
+                                    <input type="email" name="email" value="<?php echo htmlspecialchars($userRow['email'] ?? ''); ?>" required style="width:100%; background:#fff; border:1px solid #ddd; border-radius:12px; padding:12px 16px; font-size:14px; color:var(--text);"></label>
+                                <?php if ($hasAddress): ?>
+                                <label style="display:grid; gap:8px; font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase; grid-column:1/-1;">Physical Address
+                                    <input type="text" name="address" value="<?php echo htmlspecialchars($userRow['address'] ?? ''); ?>" style="width:100%; background:#fff; border:1px solid #ddd; border-radius:12px; padding:12px 16px; font-size:14px; color:var(--text);"></label>
+                                <?php endif; ?>
+                            </div>
                             <?php if (($userRow['role'] ?? '') !== 'admin'): ?>
-                            <label>Plate No<input type="text" name="plate_no" value="<?php echo htmlspecialchars($userRow['plate_no'] ?? ''); ?>"></label>
-                            <label>Reference No<input type="text" name="reference_no" value="<?php echo htmlspecialchars($userRow['reference_no'] ?? ''); ?>"></label>
+                            <div class="form-section-title" style="margin-top:40px;">Professional Details</div>
+                            <div class="profile-form-grid">
+                                <label style="display:grid; gap:8px; font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase;">Plate Number
+                                    <input type="text" name="plate_no" value="<?php echo htmlspecialchars($userRow['plate_no'] ?? ''); ?>" style="width:100%; background:#fff; border:1px solid #ddd; border-radius:12px; padding:12px 16px; font-size:14px; color:var(--text);"></label>
+                                <label style="display:grid; gap:8px; font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase;">Reference Number
+                                    <input type="text" name="reference_no" value="<?php echo htmlspecialchars($userRow['reference_no'] ?? ''); ?>" style="width:100%; background:#fff; border:1px solid #ddd; border-radius:12px; padding:12px 16px; font-size:14px; color:var(--text);"></label>
+                            </div>
                             <?php endif; ?>
-                            <div style="grid-column: 1 / -1; display:flex; gap:10px;">
-                                <button class="btn-small" type="submit">Save Changes</button>
+                            <div style="margin-top:48px; display:flex; justify-content:flex-end;">
+                                <button type="submit" class="btn-small" style="padding:16px 48px; font-size:16px; background:var(--gradient-primary); color:white; border-radius:16px; box-shadow:var(--shadow-glow);">Save Changes</button>
                             </div>
                         </form>
                     </div>
-                </div>
-            </section>
+                </section>
+            </div>
         </main>
     </div>
     <script src="app.js"></script>
 </body>
 </html>
-

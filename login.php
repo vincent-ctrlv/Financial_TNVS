@@ -6,19 +6,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	$email = trim($_POST['email'] ?? '');
 	$password = (string)($_POST['password'] ?? '');
 	if ($email && $password) {
-		// Simple admin-only login: accept only password 'admin'
-		if ($password === 'admin') {
-			if (session_status() === PHP_SESSION_NONE) { session_start(); }
-			$_SESSION['user'] = [
-				'id' => 0,
-				'name' => 'Admin',
-				'email' => $email ?: 'admin@example.com',
-				'role' => 'admin',
-			];
-			header('Location: admin.php');
+        // Use the proper authentication function from auth.php
+		if (attempt_login($mysqli, $email, $password)) {
+			header('Location: dashboard.php');
 			exit;
 		}
-		$error = 'Invalid password';
+		$error = 'Invalid email or password';
 	} else {
 		$error = 'Please enter email and password';
 	}
@@ -29,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Login - TNVS</title>
+	<title>Login - SakaySaya</title>
 	<link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -41,17 +34,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 			</div>
 			<form class="login-form" method="post" action="">
 				<label>Email
-					<input type="email" name="email" placeholder="you@example.com" required />
+					<input type="email" name="email" placeholder="you@example.com" required value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>" />
 				</label>
 				<label>Password
 					<input type="password" name="password" placeholder="••••••••" required />
 				</label>
 				<div class="error-message"><?php echo htmlspecialchars($error); ?></div>
 				<button type="submit">Sign in</button>
+				<div style="margin-top: 15px; text-align: center;">
+					<a href="send_otp.php" style="color: var(--primary); text-decoration: none; font-size: 14px;">Verify via OTP</a>
+				</div>
 			</form>
 		</div>
 	</div>
-	<script src="app.js"></script>
 </body>
 </html>
-

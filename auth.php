@@ -10,16 +10,26 @@ require_once __DIR__ . '/db.php';
 function _normalize_session_user(mysqli $mysqli): void {
     if (empty($_SESSION['user']) || !is_array($_SESSION['user'])) return;
     $u = &$_SESSION['user'];
+    
     // Support older key name 'user_id'
     if (!isset($u['id']) && isset($u['user_id'])) {
         $u['id'] = (int)$u['user_id'];
     }
-    // If we have an id but missing name/email/role, try to load from DB
+
+    // CRITICAL: Invalidate sessions that have an ID of 0 (from the old login backdoor)
+    // This forces users with stale sessions to log in again using the proper system.
+    if (!isset($u['id']) || (int)$u['id'] <= 0) {
+        unset($_SESSION['user']);
+        return;
+    }
+
+    // Determine if we need to backfill data from the DB
     $need = [];
-    foreach (['name','email','role'] as $k) { if (!isset($u[$k]) || $u[$k] === '') $need[] = $k; }
-    if ((!isset($u['id']) || (int)$u['id'] === 0) || empty($need)) return;
+    foreach (['name','email','role','avatar'] as $k) { if (!isset($u[$k]) || $u[$k] === '') $need[] = $k; }
+    if (empty($need)) return;
+
     $id = (int)$u['id'];
-    if ($stmt = $mysqli->prepare('SELECT name, email, role FROM users WHERE user_id = ? LIMIT 1')) {
+    if ($stmt = $mysqli->prepare('SELECT name, email, role, avatar FROM users WHERE user_id = ? LIMIT 1')) {
         $stmt->bind_param('i', $id);
         $stmt->execute();
         $res = $stmt->get_result();
@@ -27,6 +37,7 @@ function _normalize_session_user(mysqli $mysqli): void {
             if (!isset($u['name']) || $u['name'] === '') $u['name'] = $row['name'] ?? $u['name'] ?? 'User';
             if (!isset($u['email']) || $u['email'] === '') $u['email'] = $row['email'] ?? $u['email'] ?? '';
             if (!isset($u['role']) || $u['role'] === '') $u['role'] = $row['role'] ?? $u['role'] ?? '';
+            if (!isset($u['avatar']) || $u['avatar'] === '') $u['avatar'] = $row['avatar'] ?? $u['avatar'] ?? '';
         }
         $stmt->close();
     }
@@ -117,7 +128,7 @@ function verify_csrf_or_die(): void {
 }
 
 function attempt_login(mysqli $mysqli, string $email, string $password): bool {
-	$stmt = $mysqli->prepare('SELECT user_id, name, email, password_hash, role FROM users WHERE email = ? LIMIT 1');
+	$stmt = $mysqli->prepare('SELECT user_id, name, email, password_hash, role, avatar FROM users WHERE email = ? LIMIT 1');
 	if (!$stmt) return false;
 	$stmt->bind_param('s', $email);
 	$stmt->execute();
@@ -132,11 +143,10 @@ function attempt_login(mysqli $mysqli, string $email, string $password): bool {
 			'name' => $row['name'] ?? 'User',
 			'email' => $row['email'],
 			'role' => $row['role'] ?? 'driver',
+			'avatar' => $row['avatar'] ?? '',
 		];
 		return true;
 	}
 	return false;
 }
-
 ?>
-

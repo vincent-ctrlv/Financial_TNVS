@@ -4,6 +4,17 @@ require_once __DIR__ . '/auth.php';
 require_login();
 require_access('dashboard');
 require __DIR__ . '/db.php';
+$user = current_user();
+
+// Ensure 'method' column exists for payment type in both tables for consistency
+foreach (['accountsreceivable', 'accountspayable'] as $tbl) {
+    if ($chk = $mysqli->query("SHOW COLUMNS FROM `$tbl` LIKE 'method'")) {
+        if ($chk->num_rows === 0) {
+            $mysqli->query("ALTER TABLE `$tbl` ADD COLUMN method ENUM('cash','gcash','bank_transfer') DEFAULT 'cash'");
+        }
+        $chk->free();
+    }
+}
 
 // Helper to fetch a single value safely
 function fetch_value($mysqli, $sql, $default = 0) {
@@ -85,57 +96,9 @@ $recent = array_slice($recent, 0, 10);
 </head>
 <body>
 	<div id="app" class="app">
-		<header class="app-header">
-			<button id="menuToggle" class="icon-btn" aria-label="Toggle menu"><span></span><span></span><span></span></button>
-			<div class="brand" role="img" aria-label="TNVS Finance System">
-				<svg viewBox="0 0 120 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-					<text x="10" y="16" font-size="16" font-weight="800" letter-spacing="0.5" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" fill="currentColor">SAKAYSAYA</text>
-				</svg>
-			</div>
-			<div class="user">
-				<span id="currentUser">Welcome, <?php echo htmlspecialchars($_SESSION['user']['name'] ?? ''); ?></span>
-				<a href="logout.php" class="text-btn">Logout</a>
-			</div>
-		</header>
+		<?php include 'header.php'; ?>
+		<?php include 'sidebar.php'; ?>
 
-		<nav id="sidebar" class="sidebar">
-			<div class="group">
-				<h4>Main</h4>
-				<?php if (can_access('dashboard')): ?><a class="nav active" href="dashboard.php"><span>Dashboard</span></a><?php endif; ?>
-			</div>
-			<div class="group">
-				<h4>Accounts Management</h4>
-				<?php if (can_access('ledger')): ?><a class="nav" href="ledger.php"><span>General Ledger</span></a><?php endif; ?>
-				<?php if (can_access('accounts_receivable')): ?><a class="nav" href="accounts_receivable.php"><span>Accounts Receivable</span></a><?php endif; ?>
-				<?php if (can_access('accounts_payable')): ?><a class="nav" href="accounts_payable.php"><span>Accounts Payable</span></a><?php endif; ?>
-				
-			</div>
-			<div class="group">
-				<h4>Financial Operations</h4>
-				<?php if (can_access('disbursement')): ?><a class="nav" href="disbursement.php"><span>Disbursement</span></a><?php endif; ?>
-				<?php if (can_access('collection')): ?><a class="nav" href="collection.php"><span>Collection</span></a><?php endif; ?>
-			</div>
-			<div class="group">
-				<h4>Administrative System</h4>
-				<?php if (can_access('users')): ?><a class="nav" href="users.php"><span>Users</span></a><?php endif; ?>
-			</div>
-			<div class="group">
-				<div style="margin-top:auto;padding:16px;">
-					<a href="profile.php" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
-						<?php
-						$name = htmlspecialchars($_SESSION['user']['name'] ?? 'User');
-						$initial = strtoupper(substr((string)$name,0,1));
-						$svg = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#d9d9d9"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-family="Segoe UI, Arial" font-size="64" fill="#555">'.$initial.'</text></svg>';
-						$src = 'data:image/svg+xml;charset=utf-8,' . rawurlencode($svg);
-						?>
-						<img src="<?php echo $src; ?>" alt="avatar" style="width:40px;height:40px;border-radius:50%;object-fit:cover;background:#ddd;flex:0 0 auto;" />
-						<div style="font-size:14px;line-height:1;">
-							<div style="font-weight:700"><?php echo $name; ?></div>
-							<div style="font-size:12px;color:#666"><?php echo htmlspecialchars($_SESSION['user']['email'] ?? ''); ?></div>
-						</div>
-					</a>
-				</div>
-		</nav>
 		<div id="overlay" class="overlay"></div>
 
 		<main class="content" id="mainContent">

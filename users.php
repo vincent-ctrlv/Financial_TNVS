@@ -1,111 +1,130 @@
 <?php
-require_once __DIR__ . '/db.php';
-
-$rows = [
-  [1,'fare',120.00,'Trip A','2025-10-08'],
-  [2,'platform_fee',15.00,'Commission','2025-10-09'],
-  [null,'payout',5000.00,'Payout','2025-10-01']
-];
-
-$stmt = $mysqli->prepare("INSERT INTO transactions (user_id, type, amount, description, transaction_date) VALUES (?, ?, ?, ?, ?)");
-foreach ($rows as $r) {
-    [$uid,$type,$amt,$desc,$date] = $r;
-    $stmt->bind_param('isdss', $uid, $type, $amt, $desc, $date);
-    $stmt->execute();
-    echo 'Inserted: ' . $mysqli->insert_id . PHP_EOL;
-}
-$stmt->close();
-$mysqli->close();<?php
-require_once __DIR__ . '/db.php';
-
-$rows = [
-  [1,'fare',120.00,'Trip A','2025-10-08'],
-  [2,'platform_fee',15.00,'Commission','2025-10-09'],
-  [null,'payout',5000.00,'Payout','2025-10-01']
-];
-
-$stmt = $mysqli->prepare("INSERT INTO transactions (user_id, type, amount, description, transaction_date) VALUES (?, ?, ?, ?, ?)");
-foreach ($rows as $r) {
-    [$uid,$type,$amt,$desc,$date] = $r;
-    $stmt->bind_param('isdss', $uid, $type, $amt, $desc, $date);
-    $stmt->execute();
-    echo 'Inserted: ' . $mysqli->insert_id . PHP_EOL;
-}
-$stmt->close();
-$mysqli->close();<?php
 require_once __DIR__ . '/auth.php';
-require_login();
+require_access('users');
 $user = current_user();
+
+// Fetch users
+$users = [];
+if ($stmt = $mysqli->prepare("SELECT user_id, name, email, role FROM users ORDER BY name ASC")) {
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $users[] = $row;
+    }
+    $stmt->close();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>User - TNVS</title>
+	<title>Users Management - TNVS</title>
 	<link rel="stylesheet" href="style.css">
 </head>
 <body>
 	<div id="app" class="app">
-		<header class="app-header">
-			<button id="menuToggle" class="icon-btn" aria-label="Toggle menu"><span></span><span></span><span></span></button>
-			<div class="brand" role="img" aria-label="TNVS Finance System">
-				<svg viewBox="0 0 120 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-					<text x="10" y="16" font-size="16" font-weight="800" letter-spacing="0.5" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" fill="currentColor">SAKAYSAYA</text>
-				</svg>
-			</div>
-			<div class="user">
-				<span id="currentUser">Welcome, <?php echo htmlspecialchars($user['name']); ?></span>
-				<a class="text-btn" href="logout.php">Logout</a>
-			</div>
-		</header>
-		<nav id="sidebar" class="sidebar">
-			<div class="group">
-				<h4>Main</h4>
-				<a class="nav" href="dashboard.php"><span>Dashboard</span></a>
-				<a class="nav" href="ledger.php"><span>General Ledger</span></a>
-				<a class="nav" href="accounts_receivable.php"><span>Accounts Receivable</span></a>
-				<a class="nav" href="accounts_payable.php"><span>Accounts Payable</span></a>
-			</div>
-			<div class="group">
-				<h4>Financial</h4>
-				<a class="nav" href="disbursement.php"><span>Disbursement</span></a>
-				<a class="nav" href="collection.php"><span>Collection</span></a>
-				<a class="nav" href="budget.php"><span>Budget</span></a>
-			</div>
-			<div class="group">
-				<h4>Management</h4>
-			</div>
-			<div class="group">
-				<h4>Tools</h4>
-				<a class="nav" href="chat.php"><span>AI Chat</span></a>
-			</div>
-			<!-- Sidebar profile at bottom -->
-			<div style="margin-top:auto;padding:16px;">
-				<a href="profile.php" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
-					<?php
-					$initial = strtoupper(substr((string)($user['name'] ?? 'U'),0,1));
-					$svg = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#d9d9d9"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-family="Segoe UI, Arial" font-size="64" fill="#555">'.$initial.'</text></svg>';
-					$src = 'data:image/svg+xml;charset=utf-8,' . rawurlencode($svg);
-					?>
-					<img src="<?php echo $src; ?>" alt="avatar" style="width:40px;height:40px;border-radius:50%;object-fit:cover;background:#ddd;flex:0 0 auto;" />
-					<div style="font-size:14px;line-height:1;">
-						<div style="font-weight:700"><?php echo htmlspecialchars($user['name'] ?? 'User'); ?></div>
-						<div style="font-size:12px;color:#666"><?php echo htmlspecialchars($user['email'] ?? ''); ?></div>
-					</div>
-				</a>
-			</div>
-		</nav>
+		<?php include 'header.php'; ?>
+		<?php include 'sidebar.php'; ?>
+
 		<div id="overlay" class="overlay"></div>
 		<main class="content" id="mainContent">
 			<section class="section active">
-				<h3>User Panel</h3>
-				<p>You are logged in as: <strong><?php $r=$user['role']??'user'; echo htmlspecialchars($r==='finance_staff'?'employee':$r); ?></strong></p>
-				<p>Go to <a href="dashboard.php">Dashboard</a>.</p>
+				<div class="section-header">
+                    <h3>Users Management</h3>
+                </div>
+
+                <div class="section-actions">
+                    <div class="search-input-group">
+                        <input type="text" id="userSearch" placeholder="Search by name, email or role..." onkeyup="filterUsers()">
+                    </div>
+                    <button class="btn-small" onclick="addUser()">+ Add New User</button>
+                </div>
+                
+                <div class="card">
+                    <div class="table-wrap">
+                        <table class="table" id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($users as $u): ?>
+                                <tr data-id="<?php echo htmlspecialchars($u['user_id']); ?>" data-name="<?php echo htmlspecialchars($u['name']); ?>" data-email="<?php echo htmlspecialchars($u['email']); ?>" data-role="<?php echo htmlspecialchars($u['role']); ?>">
+                                    <td><?php echo htmlspecialchars($u['user_id']); ?></td>
+                                    <td style="font-weight:600"><?php echo htmlspecialchars($u['name']); ?></td>
+                                    <td><?php echo htmlspecialchars($u['email']); ?></td>
+                                    <td><span class="badge badge-<?php echo strtolower($u['role']); ?>"><?php echo htmlspecialchars($u['role']); ?></span></td>
+                                    <td class="actions-cell">
+                                        <button class="icon-btn" onclick='editUser(<?php echo json_encode($u); ?>)' title="Edit User">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                                        </button>
+                                        <?php if ($u['user_id'] != $user['id']): ?>
+                                        <button class="icon-btn" onclick="deleteUser(<?php echo $u['user_id']; ?>)" title="Delete User" style="color:var(--danger)">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                        </button>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
 			</section>
 		</main>
+
+        <!-- User Modal -->
+        <div id="userModal" class="modal">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h4 id="modalTitle">Add New User</h4>
+                    <button class="icon-btn" onclick="hideUserModal()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <form id="userForm" class="form-grid" onsubmit="saveUser(event)">
+                        <?php echo csrf_field(); ?>
+                        <input type="hidden" name="user_id" id="formUserId">
+                        <input type="hidden" name="action" value="save">
+                        
+                        <label>
+                            Full Name
+                            <input type="text" name="name" id="formName" required placeholder="Enter full name">
+                        </label>
+                        
+                        <label>
+                            Email Address
+                            <input type="email" name="email" id="formEmail" required placeholder="Enter email address">
+                        </label>
+                        
+                        <label>
+                            System Role
+                            <select name="role" id="formRole" required>
+                                <option value="admin">Admin</option>
+                                <option value="finance_staff">Finance Staff</option>
+                                <option value="driver">Driver</option>
+                            </select>
+                        </label>
+                        
+                        <label>
+                            Password
+                            <input type="password" name="password" id="formPassword" placeholder="Leave blank to keep current">
+                        </label>
+                        
+                        <div style="grid-column: 1 / -1; display:flex; justify-content:flex-end; gap:12px; margin-top:12px;">
+                            <button type="button" class="text-btn" onclick="hideUserModal()">Cancel</button>
+                            <button type="submit" class="btn-small">Save User</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
 	</div>
 	<script src="app.js"></script>
 </body>
 </html>
-

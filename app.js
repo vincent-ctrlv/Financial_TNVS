@@ -77,4 +77,92 @@
 	try {
 		// disabled per request
 	} catch(e){}
+	// --- User Management UI Logic ---
+
+
+	window.hideUserModal = function(){
+		if (qs('#userModal')) qs('#userModal').classList.remove('show');
+	};
+
+	window.addUser = function(){
+		if (!qs('#userModal')) return;
+		qs('#modalTitle').textContent = 'Add New User';
+		qs('#formUserId').value = '';
+		qs('#formName').value = '';
+		qs('#formEmail').value = '';
+		qs('#formRole').value = 'driver';
+		qs('#formPassword').required = true;
+		qs('#formPassword').value = '';
+		qs('#userModal').classList.add('show');
+	};
+
+	window.editUser = function(u){
+		if (!qs('#userModal')) return;
+		qs('#modalTitle').textContent = 'Edit User: ' + u.name;
+		qs('#formUserId').value = u.user_id;
+		qs('#formName').value = u.name;
+		qs('#formEmail').value = u.email;
+		qs('#formRole').value = u.role;
+		qs('#formPassword').required = false;
+		qs('#formPassword').value = '';
+		qs('#userModal').classList.add('show');
+	};
+
+	window.saveUser = function(e){
+		e.preventDefault();
+		var form = e.target;
+		var formData = new FormData(form);
+		
+		fetch('user_api.php', {
+			method: 'POST',
+			body: formData
+		})
+		.then(res => res.json())
+		.then(data => {
+			if (data.success) {
+				location.reload(); // Simple reload to refresh table
+			} else {
+				alert(data.error || 'Failed to save user');
+			}
+		})
+		.catch(err => {
+			console.error(err);
+			alert('Connection error');
+		});
+	};
+
+	window.deleteUser = function(id){
+		if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+		
+		var formData = new FormData();
+		formData.append('action', 'delete');
+		formData.append('user_id', id);
+		formData.append('_csrf', qs('input[name="_csrf"]').value);
+
+		fetch('user_api.php', {
+			method: 'POST',
+			body: formData
+		})
+		.then(res => res.json())
+		.then(data => {
+			if (data.success) {
+				location.reload();
+			} else {
+				alert(data.error || 'Failed to delete user');
+			}
+		})
+		.catch(err => {
+			console.error(err);
+			alert('Connection error');
+		});
+	};
+
+	window.filterUsers = function(){
+		var q = qs('#userSearch').value.toLowerCase();
+		var rows = qsa('#usersTable tbody tr');
+		rows.forEach(row => {
+			var text = (row.dataset.name + ' ' + row.dataset.email + ' ' + row.dataset.role).toLowerCase();
+			row.style.display = text.includes(q) ? '' : 'none';
+		});
+	};
 })();
