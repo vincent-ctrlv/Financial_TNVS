@@ -73,4 +73,3 @@ function is_active($p) {
         </a>
     </div>
 </nav>
-<div id="overlay" class="overlay"></div>

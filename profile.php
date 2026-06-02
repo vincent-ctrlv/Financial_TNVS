@@ -5,14 +5,7 @@ require_access('profile');
 require __DIR__ . '/db.php';
 $sessionUser = current_user();
 
-function users_has_column(mysqli $mysqli, string $column): bool {
-    if (!$res = $mysqli->query("SHOW COLUMNS FROM users LIKE '" . $mysqli->real_escape_string($column) . "'")) return false;
-    $exists = (bool)$res->num_rows; $res->free(); return $exists;
-}
-
-$hasAddress = users_has_column($mysqli, 'address');
-if (!users_has_column($mysqli, 'avatar')) { $mysqli->query("ALTER TABLE users ADD COLUMN avatar VARCHAR(255) NULL"); }
-
+$hasAddress = true;
 $success = '';$error = '';
 $uid = (int)($sessionUser['id'] ?? 0);
 $userRow = null;
@@ -85,21 +78,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['do'] ?? '') === 'u
                     }
                 }
             }
-            if ($hasAddress) {
-                if ($stmt = $mysqli->prepare('UPDATE users SET name=?, email=?, plate_no=?, reference_no=?, address=?, avatar=? WHERE user_id=?')) {
-                    $stmt->bind_param('ssssssi', $name, $email, $plate, $ref, $address, $avatarPath, $uid);
-                    $ok = $stmt->execute(); $stmt->close();
-                    if ($ok) { $success = 'Profile updated.'; $_SESSION['user']['name'] = $name; $_SESSION['user']['email'] = $email; $_SESSION['user']['avatar'] = $avatarPath; }
-                    else { $error = 'Failed to update profile.'; }
-                } else { $error = 'Internal error (prepare with address).'; }
-            } else {
-                if ($stmt = $mysqli->prepare('UPDATE users SET name=?, email=?, plate_no=?, reference_no=?, avatar=? WHERE user_id=?')) {
-                    $stmt->bind_param('sssssi', $name, $email, $plate, $ref, $avatarPath, $uid);
-                    $ok = $stmt->execute(); $stmt->close();
-                    if ($ok) { $success = 'Profile updated.'; $_SESSION['user']['name'] = $name; $_SESSION['user']['email'] = $email; $_SESSION['user']['avatar'] = $avatarPath; }
-                    else { $error = 'Failed to update profile.'; }
-                } else { $error = 'Internal error (prepare).'; }
-            }
+            if ($stmt = $mysqli->prepare('UPDATE users SET name=?, email=?, plate_no=?, reference_no=?, address=?, avatar=? WHERE user_id=?')) {
+                $stmt->bind_param('ssssssi', $name, $email, $plate, $ref, $address, $avatarPath, $uid);
+                $ok = $stmt->execute(); $stmt->close();
+                if ($ok) {
+                    $success = 'Profile updated.';
+                    $_SESSION['user']['name'] = $name;
+                    $_SESSION['user']['email'] = $email;
+                    $_SESSION['user']['avatar'] = $avatarPath;
+                    log_audit_action($mysqli, 'update_profile', 'users');
+                }
+                else { $error = 'Failed to update profile.'; }
+            } else { $error = 'Internal error (prepare).'; }
             if ($error === '') {
                 header('Location: profile.php?updated=1');
                 exit;

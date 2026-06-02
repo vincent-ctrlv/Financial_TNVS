@@ -8,13 +8,6 @@ $user = current_user();
 // Auto-update overdue statuses
 $mysqli->query("UPDATE accountsreceivable SET status='overdue' WHERE status='pending' AND due_date < CURDATE()");
 
-// Ensure 'method' column exists for payment type (cash/gcash/bank_transfer)
-if ($chk = $mysqli->query("SHOW COLUMNS FROM accountsreceivable LIKE 'method'")) {
-    if ($chk->num_rows === 0) {
-        $mysqli->query("ALTER TABLE accountsreceivable ADD COLUMN method ENUM('cash','gcash','bank_transfer') DEFAULT 'cash'");
-    }
-    $chk->free();
-}
 
 
 
@@ -28,42 +21,24 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && in_array(($user['role'] ?? 
             $stmt = $mysqli->prepare("UPDATE accountsreceivable SET status='paid' WHERE ar_id=?");
             if ($stmt) { $stmt->bind_param('i', $arId); $stmt->execute(); $stmt->close(); }
 
-            // Insert to disbursements if not already inserted
-            if ($res = $mysqli->query("SELECT ar.user_id, ar.amount_due, COALESCE(ar.method,'cash') AS method FROM accountsreceivable ar WHERE ar.ar_id=".$arId." LIMIT 1")) {
-                if ($row = $res->fetch_assoc()) {
-                    $userId = (int)$row['user_id'];
-                    $amount = (float)$row['amount_due'];
-                    // normalize and validate method
-                    $method = strtolower(trim((string)($row['method'] ?? 'cash')));
-                    if (!in_array($method, ['cash','gcash','bank_transfer'], true)) { $method = 'cash'; }
-                    $res->free();
-                    // Deduplicate by remarks
-                    $remark = 'AR #'.$arId;
-                    $exists = false;
-                    if ($chk = $mysqli->prepare("SELECT 1 FROM disbursements WHERE remarks = ? LIMIT 1")) {
-                        $chk->bind_param('s', $remark);
-                        $chk->execute();
-                        $chk->store_result();
-                        $exists = $chk->num_rows > 0;
-                        $chk->close();
-                    }
-                    if (!$exists) {
-                        $ins = $mysqli->prepare("INSERT INTO disbursements (user_id, amount, method, disbursement_date, remarks) VALUES (?,?,?,?,?)");
-                        if ($ins) {
-                            $today = date('Y-m-d');
-                            $ins->bind_param('idsss', $userId, $amount, $method, $today, $remark);
-                            $ins->execute();
-                            $ins->close();
-                        }
-                    }
-                } else { $res->free(); }
+            // Mirror paid record into disbursements
+            if ($stmt2 = $mysqli->prepare("SELECT user_id, amount_due, COALESCE(method,'cash') AS method FROM accountsreceivable WHERE ar_id=? LIMIT 1")) {
+                $stmt2->bind_param('i', $arId);
+                $stmt2->execute();
+                $row = $stmt2->get_result()->fetch_assoc();
+                $stmt2->close();
+                if ($row) {
+                    insert_disbursement_for($mysqli, (int)$row['user_id'], (float)$row['amount_due'], (string)$row['method'], 'AR #'.$arId);
+                }
             }
+            log_audit_action($mysqli, 'mark_paid', 'accountsreceivable');
         }
     } elseif ($action === 'mark_pending') {
         $arId = (int)($_POST['ar_id'] ?? 0);
         if ($arId > 0) {
             $stmt = $mysqli->prepare("UPDATE accountsreceivable SET status='pending' WHERE ar_id=?");
             if ($stmt) { $stmt->bind_param('i', $arId); $stmt->execute(); $stmt->close(); }
+            log_audit_action($mysqli, 'mark_pending', 'accountsreceivable');
         }
     } elseif ($action === 'update_status') {
         $arId = (int)($_POST['ar_id'] ?? 0);
@@ -72,36 +47,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && in_array(($user['role'] ?? 
             $stmt = $mysqli->prepare("UPDATE accountsreceivable SET status=? WHERE ar_id=?");
             if ($stmt) { $stmt->bind_param('si', $newStatus, $arId); $stmt->execute(); $stmt->close(); }
             if ($newStatus === 'paid') {
-                // mirror mark_paid side-effects
-                if ($res = $mysqli->query("SELECT ar.user_id, ar.amount_due, COALESCE(ar.method,'cash') AS method FROM accountsreceivable ar WHERE ar.ar_id=".$arId." LIMIT 1")) {
-                    if ($row = $res->fetch_assoc()) {
-                        $userId = (int)$row['user_id'];
-                        $amount = (float)$row['amount_due'];
-                        // normalize and validate method
-                        $method = strtolower(trim((string)($row['method'] ?? 'cash')));
-                        if (!in_array($method, ['cash','gcash','bank_transfer'], true)) { $method = 'cash'; }
-                        $res->free();
-                        $remark = 'AR #'.$arId;
-                        $exists = false;
-                        if ($chk = $mysqli->prepare("SELECT 1 FROM disbursements WHERE remarks = ? LIMIT 1")) {
-                            $chk->bind_param('s', $remark);
-                            $chk->execute();
-                            $chk->store_result();
-                            $exists = $chk->num_rows > 0;
-                            $chk->close();
-                        }
-                        if (!$exists) {
-                            $ins = $mysqli->prepare("INSERT INTO disbursements (user_id, amount, method, disbursement_date, remarks) VALUES (?,?,?,?,?)");
-                            if ($ins) {
-                                $today = date('Y-m-d');
-                                $ins->bind_param('idsss', $userId, $amount, $method, $today, $remark);
-                                $ins->execute();
-                                $ins->close();
-                            }
-                        }
-                    } else { $res->free(); }
+                if ($stmt2 = $mysqli->prepare("SELECT user_id, amount_due, COALESCE(method,'cash') AS method FROM accountsreceivable WHERE ar_id=? LIMIT 1")) {
+                    $stmt2->bind_param('i', $arId);
+                    $stmt2->execute();
+                    $row = $stmt2->get_result()->fetch_assoc();
+                    $stmt2->close();
+                    if ($row) {
+                        insert_disbursement_for($mysqli, (int)$row['user_id'], (float)$row['amount_due'], (string)$row['method'], 'AR #'.$arId);
+                    }
                 }
             }
+            log_audit_action($mysqli, 'update_status_' . $newStatus, 'accountsreceivable');
         }
     }
     // Post/Redirect/Get to avoid duplicate submissions and ensure fresh data

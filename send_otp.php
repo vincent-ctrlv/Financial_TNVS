@@ -6,7 +6,20 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$email = 'vincentsasi9@gmail.com'; // Target email specified by user
+// Resolve recipient email: prefer logged-in user's email, then fallback to a
+// POST/GET 'email' param (for pre-login OTP flow). Never use a hardcoded address.
+$email = '';
+if (is_logged_in()) {
+    $email = current_user()['email'] ?? '';
+} elseif (!empty($_POST['email'])) {
+    $email = trim($_POST['email']);
+} elseif (!empty($_GET['email'])) {
+    $email = trim($_GET['email']);
+}
+
+if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    die('A valid email address is required to send an OTP. Please <a href="login.php">log in</a> first.');
+}
 
 // Generate 6-digit OTP
 $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);

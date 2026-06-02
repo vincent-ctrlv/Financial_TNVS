@@ -5,15 +5,6 @@ require_access('collection');
 require __DIR__ . '/db.php';
 $user = current_user();
 
-// Ensure 'method' column exists for payment type in both tables
-foreach (['accountsreceivable', 'accountspayable'] as $tbl) {
-    if ($chk = $mysqli->query("SHOW COLUMNS FROM `$tbl` LIKE 'method'")) {
-        if ($chk->num_rows === 0) {
-            $mysqli->query("ALTER TABLE `$tbl` ADD COLUMN method ENUM('cash','gcash','bank_transfer') DEFAULT 'cash'");
-        }
-        $chk->free();
-    }
-}
 
 // Auto-update overdue statuses for receivables before reporting
 $mysqli->query("UPDATE accountsreceivable SET status='overdue' WHERE status='pending' AND due_date < CURDATE()");

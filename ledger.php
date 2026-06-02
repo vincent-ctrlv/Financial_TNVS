@@ -1,7 +1,8 @@
 <?php
 require_once __DIR__ . '/auth.php';
 require_login();
-require __DIR__ . '/db.php';
+require_access('ledger');
+require_once __DIR__ . '/db.php';
 $user = current_user();
 
 $rows = [];
@@ -15,6 +16,8 @@ if ($res = $mysqli->query("SELECT type, COALESCE(SUM(amount),0) AS total FROM tr
 	while ($r = $res->fetch_assoc()) { $totals[$r['type']] = (float)$r['total']; }
 	$res->free();
 }
+// Determine max value for proportional bar widths
+$_maxLedger = max(array_values($totals) ?: [1]);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -44,7 +47,7 @@ if ($res = $mysqli->query("SELECT type, COALESCE(SUM(amount),0) AS total FROM tr
 								'lease' => 'Lease',
 								'incentive' => 'Incentive',
 								'payout' => 'Payout',
-							] as $key => $label): $val = (float)($totals[$key] ?? 0); $width = min(100, max(0, round($val !== 0 ? 60 : 10))); ?>
+							] as $key => $label): $val = (float)($totals[$key] ?? 0); $width = $_maxLedger > 0 ? max(2, round(($val / $_maxLedger) * 100)) : 2; ?>
 							<div class="breakdown-row">
 								<div class="label"><?php echo htmlspecialchars($label); ?></div>
 								<div class="barline"><span style="--final-width: <?php echo $width; ?>%;"></span></div>

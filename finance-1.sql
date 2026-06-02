@@ -80,24 +80,7 @@ CREATE TABLE `disbursements` (
   `remarks` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- --------------------------------------------------------
 
---
--- Table structure for table `driver`
---
-
-CREATE TABLE `driver` (
-  `id` int(255) NOT NULL,
-  `first_name` varchar(255) NOT NULL,
-  `last_name` varchar(255) NOT NULL,
-  `address` varchar(255) NOT NULL,
-  `reference_no` varchar(255) NOT NULL,
-  `plate_no` varchar(255) NOT NULL,
-  `email` varchar(255) NOT NULL,
-  `password` varchar(255) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
 
 --
 -- Table structure for table `financesettings`
@@ -139,6 +122,8 @@ CREATE TABLE `users` (
   `role` enum('driver','finance_staff','admin') DEFAULT NULL,
   `plate_no` varchar(20) DEFAULT NULL,
   `reference_no` varchar(50) DEFAULT NULL,
+  `address` varchar(255) DEFAULT NULL,
+  `avatar` varchar(255) DEFAULT NULL,
   `created_at` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -173,12 +158,6 @@ ALTER TABLE `auditlogs`
 ALTER TABLE `disbursements`
   ADD PRIMARY KEY (`disbursement_id`),
   ADD KEY `user_id` (`user_id`);
-
---
--- Indexes for table `driver`
---
-ALTER TABLE `driver`
-  ADD PRIMARY KEY (`id`);
 
 --
 -- Indexes for table `financesettings`
@@ -228,12 +207,6 @@ ALTER TABLE `auditlogs`
 --
 ALTER TABLE `disbursements`
   MODIFY `disbursement_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `driver`
---
-ALTER TABLE `driver`
-  MODIFY `id` int(255) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `financesettings`

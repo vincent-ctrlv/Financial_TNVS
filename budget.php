@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/auth.php';
 require_login();
+require_access('budget');
 $user = current_user();
 ?>
 <!DOCTYPE html>
@@ -23,7 +24,6 @@ $user = current_user();
                     <p>Budget management system coming soon...</p>
                 </div>
 			</section>
-		</main>
 		</main>
 	</div>
 	<script src="app.js"></script>

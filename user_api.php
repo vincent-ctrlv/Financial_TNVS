@@ -31,6 +31,18 @@ if ($method === 'POST') {
         }
 
         if ($id > 0) {
+            // Check if email already exists for another user
+            $chk = $mysqli->prepare("SELECT user_id FROM users WHERE email = ? AND user_id != ? LIMIT 1");
+            if ($chk) {
+                $chk->bind_param("si", $email, $id);
+                $chk->execute();
+                $res = $chk->get_result();
+                if ($res->num_rows > 0) {
+                    send_json(['error' => 'Email address is already in use'], 400);
+                }
+                $chk->close();
+            }
+
             // Update
             if ($password) {
                 $hash = password_hash($password, PASSWORD_BCRYPT);
@@ -41,11 +53,29 @@ if ($method === 'POST') {
                 $stmt->bind_param("sssi", $name, $email, $role, $id);
             }
         } else {
-            // Creation disabled per request
-            send_json(['error' => 'Creation is disabled'], 403);
+            // Check if email already exists
+            $chk = $mysqli->prepare("SELECT user_id FROM users WHERE email = ? LIMIT 1");
+            if ($chk) {
+                $chk->bind_param("s", $email);
+                $chk->execute();
+                $res = $chk->get_result();
+                if ($res->num_rows > 0) {
+                    send_json(['error' => 'Email address is already in use'], 400);
+                }
+                $chk->close();
+            }
+
+            if (!$password) {
+                send_json(['error' => 'Password is required for new users'], 400);
+            }
+            $hash = password_hash($password, PASSWORD_BCRYPT);
+            $stmt = $mysqli->prepare("INSERT INTO users (name, email, role, password_hash) VALUES (?, ?, ?, ?)");
+            $stmt->bind_param("ssss", $name, $email, $role, $hash);
         }
 
-        if ($stmt->execute()) {
+        if ($stmt && $stmt->execute()) {
+            $logAction = $id > 0 ? 'update_user' : 'create_user';
+            log_audit_action($mysqli, $logAction, 'users');
             send_json(['success' => true, 'message' => 'User saved successfully']);
         } else {
             send_json(['error' => 'Database error: ' . $mysqli->error], 500);
@@ -61,6 +91,7 @@ if ($method === 'POST') {
         $stmt = $mysqli->prepare("DELETE FROM users WHERE user_id = ?");
         $stmt->bind_param("i", $id);
         if ($stmt->execute()) {
+            log_audit_action($mysqli, 'delete_user', 'users');
             send_json(['success' => true, 'message' => 'User deleted successfully']);
         } else {
             send_json(['error' => 'Database error'], 500);

@@ -20,42 +20,24 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && in_array(($user['role'] ?? 
             $stmt = $mysqli->prepare("UPDATE accountspayable SET status='paid' WHERE ap_id=?");
             if ($stmt) { $stmt->bind_param('i', $apId); $stmt->execute(); $stmt->close(); }
 
-            // Fetch details to insert a disbursement entry (outflow)
-            if ($res = $mysqli->query("SELECT ap.user_id, ap.amount_due, COALESCE(ap.method,'cash') AS method FROM accountspayable ap WHERE ap.ap_id=".$apId." LIMIT 1")) {
-                if ($row = $res->fetch_assoc()) {
-                    $userId = (int)$row["user_id"];
-                    $amount = (float)$row["amount_due"];
-                    // normalize and validate method
-                    $method = strtolower(trim((string)($row['method'] ?? 'cash')));
-                    if (!in_array($method, ['cash','gcash','bank_transfer'], true)) { $method = 'cash'; }
-                    $res->free();
-                    // Avoid duplicate disbursement by unique remark
-                    $remark = 'AP #'.$apId;
-                    $exists = false;
-                    if ($chk = $mysqli->prepare("SELECT 1 FROM disbursements WHERE remarks = ? LIMIT 1")) {
-                        $chk->bind_param('s', $remark);
-                        $chk->execute();
-                        $chk->store_result();
-                        $exists = $chk->num_rows > 0;
-                        $chk->close();
-                    }
-                    if (!$exists) {
-                        $ins = $mysqli->prepare("INSERT INTO disbursements (user_id, amount, method, disbursement_date, remarks) VALUES (?,?,?,?,?)");
-                        if ($ins) {
-                            $today = date('Y-m-d');
-                            $ins->bind_param('idsss', $userId, $amount, $method, $today, $remark);
-                            $ins->execute();
-                            $ins->close();
-                        }
-                    }
-                } else { $res->free(); }
+            // Mirror paid record into disbursements
+            if ($stmt2 = $mysqli->prepare("SELECT user_id, amount_due, COALESCE(method,'cash') AS method FROM accountspayable WHERE ap_id=? LIMIT 1")) {
+                $stmt2->bind_param('i', $apId);
+                $stmt2->execute();
+                $row = $stmt2->get_result()->fetch_assoc();
+                $stmt2->close();
+                if ($row) {
+                    insert_disbursement_for($mysqli, (int)$row['user_id'], (float)$row['amount_due'], (string)$row['method'], 'AP #'.$apId);
+                }
             }
+            log_audit_action($mysqli, 'mark_paid', 'accountspayable');
         }
     } elseif ($action === 'mark_pending') {
         $apId = (int)($_POST['ap_id'] ?? 0);
         if ($apId > 0) {
             $stmt = $mysqli->prepare("UPDATE accountspayable SET status='pending' WHERE ap_id=?");
             if ($stmt) { $stmt->bind_param('i', $apId); $stmt->execute(); $stmt->close(); }
+            log_audit_action($mysqli, 'mark_pending', 'accountspayable');
         }
     } elseif ($action === 'update_status') {
         $apId = (int)($_POST['ap_id'] ?? 0);
@@ -64,35 +46,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && in_array(($user['role'] ?? 
             $stmt = $mysqli->prepare("UPDATE accountspayable SET status=? WHERE ap_id=?");
             if ($stmt) { $stmt->bind_param('si', $newStatus, $apId); $stmt->execute(); $stmt->close(); }
             if ($newStatus === 'paid') {
-                if ($res = $mysqli->query("SELECT ap.user_id, ap.amount_due, COALESCE(ap.method,'cash') AS method FROM accountspayable ap WHERE ap.ap_id=".$apId." LIMIT 1")) {
-                    if ($row = $res->fetch_assoc()) {
-                        $userId = (int)$row['user_id'];
-                        $amount = (float)$row['amount_due'];
-                        // normalize and validate method
-                        $method = strtolower(trim((string)($row['method'] ?? 'cash')));
-                        if (!in_array($method, ['cash','gcash','bank_transfer'], true)) { $method = 'cash'; }
-                        $res->free();
-                        $remark = 'AP #'.$apId;
-                        $exists = false;
-                        if ($chk = $mysqli->prepare("SELECT 1 FROM disbursements WHERE remarks = ? LIMIT 1")) {
-                            $chk->bind_param('s', $remark);
-                            $chk->execute();
-                            $chk->store_result();
-                            $exists = $chk->num_rows > 0;
-                            $chk->close();
-                        }
-                        if (!$exists) {
-                            $ins = $mysqli->prepare("INSERT INTO disbursements (user_id, amount, method, disbursement_date, remarks) VALUES (?,?,?,?,?)");
-                            if ($ins) {
-                                $today = date('Y-m-d');
-                                $ins->bind_param('idsss', $userId, $amount, $method, $today, $remark);
-                                $ins->execute();
-                                $ins->close();
-                            }
-                        }
-                    } else { $res->free(); }
+                if ($stmt2 = $mysqli->prepare("SELECT user_id, amount_due, COALESCE(method,'cash') AS method FROM accountspayable WHERE ap_id=? LIMIT 1")) {
+                    $stmt2->bind_param('i', $apId);
+                    $stmt2->execute();
+                    $row = $stmt2->get_result()->fetch_assoc();
+                    $stmt2->close();
+                    if ($row) {
+                        insert_disbursement_for($mysqli, (int)$row['user_id'], (float)$row['amount_due'], (string)$row['method'], 'AP #'.$apId);
+                    }
                 }
             }
+            log_audit_action($mysqli, 'update_status_' . $newStatus, 'accountspayable');
         }
     }
     // PRG
@@ -100,13 +64,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && in_array(($user['role'] ?? 
     exit;
 }
 
-// Ensure 'method' column exists for payment type (cash/gcash/bank_transfer)
-if ($chk = $mysqli->query("SHOW COLUMNS FROM accountspayable LIKE 'method'")) {
-    if ($chk->num_rows === 0) {
-        $mysqli->query("ALTER TABLE accountspayable ADD COLUMN method ENUM('cash','gcash','bank_transfer') DEFAULT 'cash'");
-    }
-    $chk->free();
-}
 
 
 

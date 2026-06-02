@@ -4,22 +4,28 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 $error = null;
-$success = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $entered = $_POST['otp'] ?? '';
+    $entered = trim($_POST['otp'] ?? '');
     $correct = $_SESSION['otp_code'] ?? null;
-    $expiry = $_SESSION['otp_expiry'] ?? 0;
+    $expiry  = $_SESSION['otp_expiry'] ?? 0;
 
     if (!$correct || time() > $expiry) {
         $error = "OTP expired or not found. Please request a new one.";
     } elseif ($entered === $correct) {
-        $success = "OTP Verified Successfully!";
-        // In a real app, logic to proceed with login or reset goes here.
-        // For now, let's redirect to dashboard if they are already logged in (via seed_admin).
-        unset($_SESSION['otp_code']);
-        unset($_SESSION['otp_expiry']);
-        header('Location: dashboard.php?msg=otp_verified');
+        // Clear OTP from session — it is consumed
+        unset($_SESSION['otp_code'], $_SESSION['otp_expiry'], $_SESSION['otp_email']);
+
+        // If the user is already fully logged in via send_otp.php (post-login 2FA),
+        // send them on to the dashboard.
+        // If this is being used as a standalone gate (pre-login), the caller is
+        // responsible for setting $_SESSION['user'] before redirecting here.
+        if (!empty($_SESSION['user'])) {
+            header('Location: dashboard.php');
+        } else {
+            // Not logged in — redirect to login so credentials are entered properly.
+            header('Location: login.php?otp_verified=1');
+        }
         exit;
     } else {
         $error = "Invalid OTP code. Please try again.";
@@ -71,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-bottom: 20px;
             outline: none;
             transition: border-color 0.3s;
+            box-sizing: border-box;
         }
         input[type="text"]:focus { border-color: var(--primary); }
         button {
@@ -93,14 +100,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
     <div class="card">
         <h2>Enter Verification Code</h2>
-        <p>A 6-digit code has been sent to your Gmail.</p>
-        
+        <p>A 6-digit code has been sent to your email address.</p>
+
         <?php if ($error): ?>
             <div class="error"><?php echo htmlspecialchars($error); ?></div>
         <?php endif; ?>
 
         <form method="POST">
-            <input type="text" name="otp" maxlength="6" placeholder="000000" autocomplete="off" required autofocus>
+            <input type="text" name="otp" maxlength="6" placeholder="000000"
+                   autocomplete="off" required autofocus inputmode="numeric">
             <button type="submit">Verify Code</button>
         </form>
 

@@ -6,15 +6,6 @@ require_access('disbursement');
 require __DIR__ . '/db.php';
 $user = current_user();
 
-// Ensure 'method' column exists for payment type in both tables
-foreach (['accountsreceivable', 'accountspayable'] as $tbl) {
-    if ($chk = $mysqli->query("SHOW COLUMNS FROM `$tbl` LIKE 'method'")) {
-        if ($chk->num_rows === 0) {
-            $mysqli->query("ALTER TABLE `$tbl` ADD COLUMN method ENUM('cash','gcash','bank_transfer') DEFAULT 'cash'");
-        }
-        $chk->free();
-    }
-}
 
 $rows = [];$byMethod = [];
 // Optional one-time repair: backfill missing/empty method values in disbursements
@@ -74,33 +65,7 @@ if ($res = $mysqli->query("SELECT d.disbursement_id, d.user_id, u.name AS user_n
 		// normalize method value for display
 		$method = strtolower((string)($row['method'] ?? ''));
 		if (!in_array($method, ['cash','gcash','bank_transfer'], true) || $method === '') {
-			// Try to infer method from remarks like 'AR #123' or 'AP #123'
-			$rm = trim((string)($row['remarks'] ?? ''));
-			$inferred = '';
-			if (preg_match('/^AR #?(\d+)$/i', $rm, $m)) {
-				$aid = (int)$m[1];
-				if ($stmt = $mysqli->prepare('SELECT COALESCE(method,\'cash\') AS method FROM accountsreceivable WHERE ar_id = ? LIMIT 1')) {
-					$stmt->bind_param('i', $aid);
-					$stmt->execute();
-					$res2 = $stmt->get_result();
-					if ($r2 = $res2->fetch_assoc()) { $inferred = strtolower((string)($r2['method'] ?? '')); }
-					$stmt->close();
-				}
-			} elseif (preg_match('/^AP #?(\d+)$/i', $rm, $m)) {
-				$apid = (int)$m[1];
-				if ($stmt = $mysqli->prepare('SELECT COALESCE(method,\'cash\') AS method FROM accountspayable WHERE ap_id = ? LIMIT 1')) {
-					$stmt->bind_param('i', $apid);
-					$stmt->execute();
-					$res2 = $stmt->get_result();
-					if ($r2 = $res2->fetch_assoc()) { $inferred = strtolower((string)($r2['method'] ?? '')); }
-					$stmt->close();
-				}
-			}
-			if (in_array($inferred, ['cash','gcash','bank_transfer'], true)) {
-				$method = $inferred;
-			} else {
-				$method = 'cash';
-			}
+			$method = 'cash';
 		}
 		$row['method'] = $method;
 		$rows[] = $row;
@@ -110,6 +75,8 @@ if ($res = $mysqli->query("SELECT d.disbursement_id, d.user_id, u.name AS user_n
 	}
 	$res->free();
 }
+// Determine max method total for proportional bar widths
+$_maxDisbMethod = max(array_values($byMethod) ?: [1]);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -131,7 +98,7 @@ if ($res = $mysqli->query("SELECT d.disbursement_id, d.user_id, u.name AS user_n
 				<div class="cards">
 					<div class="card"><h4>By Method</h4>
 						<div class="breakdown">
-                            <?php foreach (['bank_transfer'=>'Bank Transfer','gcash'=>'GCash','cash'=>'Cash'] as $k=>$label): $val=(float)($byMethod[$k]??0); $w=min(100,max(5,round($val?60:10))); ?>
+                            <?php foreach (['bank_transfer'=>'Bank Transfer','gcash'=>'GCash','cash'=>'Cash'] as $k=>$label): $val=(float)($byMethod[$k]??0); $w=$_maxDisbMethod>0?max(2,round(($val/$_maxDisbMethod)*100)):2; ?>
 							<div class="breakdown-row"><div class="label"><?php echo $label; ?></div><div class="barline"><span style="--final-width: <?php echo $w; ?>%;"></span></div><div class="value">₱<?php echo number_format($val,2); ?></div></div>
 							<?php endforeach; ?>
 						</div>

@@ -6,15 +6,6 @@ require_access('dashboard');
 require __DIR__ . '/db.php';
 $user = current_user();
 
-// Ensure 'method' column exists for payment type in both tables for consistency
-foreach (['accountsreceivable', 'accountspayable'] as $tbl) {
-    if ($chk = $mysqli->query("SHOW COLUMNS FROM `$tbl` LIKE 'method'")) {
-        if ($chk->num_rows === 0) {
-            $mysqli->query("ALTER TABLE `$tbl` ADD COLUMN method ENUM('cash','gcash','bank_transfer') DEFAULT 'cash'");
-        }
-        $chk->free();
-    }
-}
 
 // Helper to fetch a single value safely
 function fetch_value($mysqli, $sql, $default = 0) {

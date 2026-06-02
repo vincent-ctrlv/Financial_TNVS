@@ -149,4 +149,66 @@ function attempt_login(mysqli $mysqli, string $email, string $password): bool {
 	}
 	return false;
 }
+
+/**
+ * Insert a disbursement record when an AR or AP entry is marked paid.
+ * De-duplicates by the remark string (e.g. 'AR #5' or 'AP #12').
+ *
+ * @param mysqli $mysqli   Active DB connection
+ * @param int    $userId   ID of the user linked to the record
+ * @param float  $amount   Payment amount
+ * @param string $method   Payment method (cash|gcash|bank_transfer)
+ * @param string $remark   Unique remark, e.g. 'AR #5'
+ * @return bool            True if a new row was inserted, false if it already existed or failed
+ */
+function insert_disbursement_for(mysqli $mysqli, int $userId, float $amount, string $method, string $remark): bool {
+    // Validate/normalise method
+    if (!in_array($method, ['cash', 'gcash', 'bank_transfer'], true)) {
+        $method = 'cash';
+    }
+
+    // Deduplicate: skip if a disbursement with this remark already exists
+    if ($chk = $mysqli->prepare("SELECT 1 FROM disbursements WHERE remarks = ? LIMIT 1")) {
+        $chk->bind_param('s', $remark);
+        $chk->execute();
+        $chk->store_result();
+        $exists = $chk->num_rows > 0;
+        $chk->close();
+        if ($exists) return false;
+    }
+
+    $today = date('Y-m-d');
+    if ($ins = $mysqli->prepare("INSERT INTO disbursements (user_id, amount, method, disbursement_date, remarks) VALUES (?,?,?,?,?)")) {
+        $ins->bind_param('idsss', $userId, $amount, $method, $today, $remark);
+        $ok = $ins->execute();
+        $ins->close();
+        return $ok;
+    }
+    return false;
+}
+
+/**
+ * Log an audit action to the auditlogs table.
+ *
+ * @param mysqli $mysqli       Active DB connection
+ * @param string $action       Action performed (e.g. 'mark_paid', 'update_profile', 'delete_user')
+ * @param string $targetTable  Target table (e.g. 'accountsreceivable', 'users')
+ * @return bool                True on success
+ */
+function log_audit_action(mysqli $mysqli, string $action, string $targetTable): bool {
+    $userId = null;
+    if (isset($_SESSION['user']['id'])) {
+        $userId = (int)$_SESSION['user']['id'];
+    }
+    if ($userId === null) {
+        return false;
+    }
+    if ($stmt = $mysqli->prepare("INSERT INTO auditlogs (user_id, action, target_table) VALUES (?, ?, ?)")) {
+        $stmt->bind_param('iss', $userId, $action, $targetTable);
+        $ok = $stmt->execute();
+        $stmt->close();
+        return $ok;
+    }
+    return false;
+}
 ?>

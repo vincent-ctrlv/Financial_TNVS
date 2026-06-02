@@ -41,8 +41,7 @@ function send_mail($to, $subject, $body) {
         $mail->send();
         return true;
     } catch (Exception $e) {
-        // In a real app, you'd log this error
-        // error_log("Mailer Error: {$mail->ErrorInfo}");
+        error_log("Mailer Error: {$mail->ErrorInfo}");
         return false;
     }
 }
