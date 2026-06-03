@@ -22,19 +22,25 @@ if (isset($_GET['repair_methods']) && ($_GET['repair_methods'] === '1')) {
 
 				if (preg_match('/^AR #?([0-9]+)$/i', $rm, $m)) {
 					$id = (int)$m[1];
-					if ($r2 = $mysqli->query("SELECT COALESCE(method,'cash') AS method FROM accountsreceivable WHERE ar_id=".$id." LIMIT 1")) {
-						if ($rrow = $r2->fetch_assoc()) {
+					if ($r2 = $mysqli->prepare("SELECT COALESCE(method,'cash') AS method FROM accountsreceivable WHERE ar_id = ? LIMIT 1")) {
+						$r2->bind_param('i', $id);
+						$r2->execute();
+						$res2 = $r2->get_result();
+						if ($rrow = $res2->fetch_assoc()) {
 							$meth = strtolower(trim((string)$rrow['method']));
 						}
-						$r2->free();
+						$r2->close();
 					}
 				} elseif (preg_match('/^AP #?([0-9]+)$/i', $rm, $m)) {
 					$id = (int)$m[1];
-					if ($r2 = $mysqli->query("SELECT COALESCE(method,'cash') AS method FROM accountspayable WHERE ap_id=".$id." LIMIT 1")) {
-						if ($rrow = $r2->fetch_assoc()) {
+					if ($r2 = $mysqli->prepare("SELECT COALESCE(method,'cash') AS method FROM accountspayable WHERE ap_id = ? LIMIT 1")) {
+						$r2->bind_param('i', $id);
+						$r2->execute();
+						$res2 = $r2->get_result();
+						if ($rrow = $res2->fetch_assoc()) {
 							$meth = strtolower(trim((string)$rrow['method']));
 						}
-						$r2->free();
+						$r2->close();
 					}
 				}
 

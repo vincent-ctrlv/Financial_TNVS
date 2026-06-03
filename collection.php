@@ -28,18 +28,45 @@ if ($res = $mysqli->query("SELECT status, amount_due FROM accountsreceivable")) 
 // Table filter: all | pending | paid | overdue (default: all)
 $statusFilter = strtolower(trim($_GET['status'] ?? 'all'));
 if (!in_array($statusFilter, ['all','pending','paid','overdue'], true)) { $statusFilter = 'all'; }
-$whereAr = ($statusFilter === 'all') ? '' : (" WHERE ar.status='".$mysqli->real_escape_string($statusFilter)."'");
 // Pull AR (inflows)
-if ($res = $mysqli->query("SELECT ar.ar_id, ar.user_id, u.name AS user_name, ar.amount_due, ar.due_date, ar.method, ar.status FROM accountsreceivable ar LEFT JOIN users u ON u.user_id = ar.user_id".$whereAr." ORDER BY ar.due_date ASC, ar.ar_id DESC LIMIT 200")) {
-	while ($row = $res->fetch_assoc()) { $row['source'] = 'AR'; $rows[] = $row; }
-	$res->free();
+if ($statusFilter === 'all') {
+	$stmtAr = $mysqli->prepare("SELECT ar.ar_id, ar.user_id, u.name AS user_name, ar.amount_due, ar.due_date, ar.method, ar.status FROM accountsreceivable ar LEFT JOIN users u ON u.user_id = ar.user_id ORDER BY ar.due_date ASC, ar.ar_id DESC LIMIT 200");
+} else {
+	$stmtAr = $mysqli->prepare("SELECT ar.ar_id, ar.user_id, u.name AS user_name, ar.amount_due, ar.due_date, ar.method, ar.status FROM accountsreceivable ar LEFT JOIN users u ON u.user_id = ar.user_id WHERE ar.status = ? ORDER BY ar.due_date ASC, ar.ar_id DESC LIMIT 200");
+	if ($stmtAr) {
+		$stmtAr->bind_param('s', $statusFilter);
+	}
 }
+
+if ($stmtAr) {
+	$stmtAr->execute();
+	$res = $stmtAr->get_result();
+	while ($row = $res->fetch_assoc()) {
+		$row['source'] = 'AR';
+		$rows[] = $row;
+	}
+	$stmtAr->close();
+}
+
 // Pull AP (outflows) - treat as 'AP' source, skip when filtering 'overdue'
 if ($statusFilter === 'all' || $statusFilter === 'pending' || $statusFilter === 'paid') {
-	$whereAp = ($statusFilter === 'all') ? '' : (" WHERE ap.status='".$mysqli->real_escape_string($statusFilter)."'");
-	if ($res = $mysqli->query("SELECT ap.ap_id, ap.user_id, u.name AS user_name, ap.amount_due, ap.due_date, ap.method, ap.status FROM accountspayable ap LEFT JOIN users u ON u.user_id = ap.user_id".$whereAp." ORDER BY ap.due_date ASC, ap.ap_id DESC LIMIT 200")) {
-		while ($row = $res->fetch_assoc()) { $row['source'] = 'AP'; $rows[] = $row; }
-		$res->free();
+	if ($statusFilter === 'all') {
+		$stmtAp = $mysqli->prepare("SELECT ap.ap_id, ap.user_id, u.name AS user_name, ap.amount_due, ap.due_date, ap.method, ap.status FROM accountspayable ap LEFT JOIN users u ON u.user_id = ap.user_id ORDER BY ap.due_date ASC, ap.ap_id DESC LIMIT 200");
+	} else {
+		$stmtAp = $mysqli->prepare("SELECT ap.ap_id, ap.user_id, u.name AS user_name, ap.amount_due, ap.due_date, ap.method, ap.status FROM accountspayable ap LEFT JOIN users u ON u.user_id = ap.user_id WHERE ap.status = ? ORDER BY ap.due_date ASC, ap.ap_id DESC LIMIT 200");
+		if ($stmtAp) {
+			$stmtAp->bind_param('s', $statusFilter);
+		}
+	}
+
+	if ($stmtAp) {
+		$stmtAp->execute();
+		$res = $stmtAp->get_result();
+		while ($row = $res->fetch_assoc()) {
+			$row['source'] = 'AP';
+			$rows[] = $row;
+		}
+		$stmtAp->close();
 	}
 }
 // Sort combined by due_date ASC, then newest id DESC

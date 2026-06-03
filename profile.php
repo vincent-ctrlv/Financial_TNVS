@@ -5,14 +5,12 @@ require_access('profile');
 require __DIR__ . '/db.php';
 $sessionUser = current_user();
 
-$hasAddress = true;
 $success = '';$error = '';
 $uid = (int)($sessionUser['id'] ?? 0);
 $userRow = null;
 
 if ($uid > 0) {
-    $sel = $hasAddress ? 'user_id, name, email, role, plate_no, reference_no, address, avatar, created_at' : 'user_id, name, email, role, plate_no, reference_no, avatar, created_at';
-    if ($stmt = $mysqli->prepare("SELECT $sel FROM users WHERE user_id = ? LIMIT 1")) {
+    if ($stmt = $mysqli->prepare("SELECT user_id, name, email, role, plate_no, reference_no, address, avatar, created_at FROM users WHERE user_id = ? LIMIT 1")) {
         $stmt->bind_param('i', $uid);
         $stmt->execute();
         $res = $stmt->get_result();
@@ -48,7 +46,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['do'] ?? '') === 'u
     $email = trim($_POST['email'] ?? '');
     $plate = trim($_POST['plate_no'] ?? '');
     $ref = trim($_POST['reference_no'] ?? '');
-    $address = $hasAddress ? trim($_POST['address'] ?? '') : '';
+    $address = trim($_POST['address'] ?? '');
 
     if ($uid <= 0) {
         $error = 'Unable to update profile: User record not found in database. Please log in again.';
@@ -166,10 +164,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['do'] ?? '') === 'u
                                     <input type="text" name="name" value="<?php echo htmlspecialchars($userRow['name'] ?? ''); ?>" required style="width:100%; background:#fff; border:1px solid #ddd; border-radius:12px; padding:12px 16px; font-size:14px; color:var(--text);"></label>
                                 <label style="display:grid; gap:8px; font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase;">Email Address
                                     <input type="email" name="email" value="<?php echo htmlspecialchars($userRow['email'] ?? ''); ?>" required style="width:100%; background:#fff; border:1px solid #ddd; border-radius:12px; padding:12px 16px; font-size:14px; color:var(--text);"></label>
-                                <?php if ($hasAddress): ?>
                                 <label style="display:grid; gap:8px; font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase; grid-column:1/-1;">Physical Address
                                     <input type="text" name="address" value="<?php echo htmlspecialchars($userRow['address'] ?? ''); ?>" style="width:100%; background:#fff; border:1px solid #ddd; border-radius:12px; padding:12px 16px; font-size:14px; color:var(--text);"></label>
-                                <?php endif; ?>
                             </div>
                             <?php if (($userRow['role'] ?? '') !== 'admin'): ?>
                             <div class="form-section-title" style="margin-top:40px;">Professional Details</div>
