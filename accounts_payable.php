@@ -1,8 +1,8 @@
 <?php
-require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/includes/auth.php';
 require_login();
 require_access('accounts_payable');
-require __DIR__ . '/db.php';
+require __DIR__ . '/includes/db.php';
 $user = current_user();
 
 
@@ -86,12 +86,12 @@ if ($res = $mysqli->query("SELECT ap.ap_id, ap.user_id, u.name AS user_name, ap.
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Accounts Payable - TNVS</title>
-	<link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
 	<div id="app" class="app">
-		<?php include 'header.php'; ?>
-		<?php include 'sidebar.php'; ?>
+		<?php include 'includes/header.php'; ?>
+		<?php include 'includes/sidebar.php'; ?>
 
 		<div id="overlay" class="overlay"></div>
 		<main class="content" id="mainContent">
@@ -163,7 +163,7 @@ if ($res = $mysqli->query("SELECT ap.ap_id, ap.user_id, u.name AS user_name, ap.
 			</section>
 		</main>
 	</div>
-	<script src="app.js"></script>
+	<script src="assets/js/app.js"></script>
 </body>
 </html>
 

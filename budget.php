@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/includes/auth.php';
 require_login();
 require_access('budget');
 $user = current_user();
@@ -10,12 +10,12 @@ $user = current_user();
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Budget - TNVS</title>
-	<link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
 	<div id="app" class="app">
-		<?php include 'header.php'; ?>
-		<?php include 'sidebar.php'; ?>
+		<?php include 'includes/header.php'; ?>
+		<?php include 'includes/sidebar.php'; ?>
 
 		<main class="content" id="mainContent">
 			<section class="section active">
@@ -26,6 +26,6 @@ $user = current_user();
 			</section>
 		</main>
 	</div>
-	<script src="app.js"></script>
+	<script src="assets/js/app.js"></script>
 </body>
 </html>

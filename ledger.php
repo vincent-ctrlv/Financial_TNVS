@@ -1,8 +1,8 @@
 <?php
-require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/includes/auth.php';
 require_login();
 require_access('ledger');
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/includes/db.php';
 $user = current_user();
 
 $rows = [];
@@ -25,12 +25,12 @@ $_maxLedger = max(array_values($totals) ?: [1]);
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>General Ledger - TNVS</title>
-	<link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
 	<div id="app" class="app">
-		<?php include 'header.php'; ?>
-		<?php include 'sidebar.php'; ?>
+		<?php include 'includes/header.php'; ?>
+		<?php include 'includes/sidebar.php'; ?>
 
 		<div id="overlay" class="overlay"></div>
 		<main class="content" id="mainContent">
@@ -90,6 +90,6 @@ $_maxLedger = max(array_values($totals) ?: [1]);
 			</section>
 		</main>
 	</div>
-	<script src="app.js"></script>
+	<script src="assets/js/app.js"></script>
 </body>
 </html>

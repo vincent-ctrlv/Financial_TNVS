@@ -1,9 +1,9 @@
 <?php
 // Basic PHP dashboard that reads from the `finance` schema
-require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/includes/auth.php';
 require_login();
 require_access('dashboard');
-require __DIR__ . '/db.php';
+require __DIR__ . '/includes/db.php';
 $user = current_user();
 
 
@@ -83,12 +83,12 @@ $recent = array_slice($recent, 0, 10);
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>TNVS Dashboard</title>
-	<link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
 	<div id="app" class="app">
-		<?php include 'header.php'; ?>
-		<?php include 'sidebar.php'; ?>
+		<?php include 'includes/header.php'; ?>
+		<?php include 'includes/sidebar.php'; ?>
 
 		<div id="overlay" class="overlay"></div>
 
@@ -198,7 +198,7 @@ $recent = array_slice($recent, 0, 10);
 			</section>
 		</main>
 	</div>
-	<script src="app.js"></script>
+	<script src="assets/js/app.js"></script>
 </body>
 </html>
 

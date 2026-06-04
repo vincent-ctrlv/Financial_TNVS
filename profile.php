@@ -1,8 +1,8 @@
 <?php
-require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/includes/auth.php';
 require_login();
 require_access('profile');
-require __DIR__ . '/db.php';
+require __DIR__ . '/includes/db.php';
 $sessionUser = current_user();
 
 $success = '';$error = '';
@@ -101,8 +101,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['do'] ?? '') === 'u
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profile - SakaySaya</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="assets/css/style.css">
     <style>
         .profile-container { max-width: 900px; margin: 0 auto; }
         .profile-card { background: white; border-radius: 24px; padding: 40px; box-shadow: var(--shadow-md); border: 1px solid rgba(40,167,69,0.1); }
@@ -120,8 +119,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['do'] ?? '') === 'u
 </head>
 <body>
     <div id="app" class="app">
-        <?php include 'header.php'; ?>
-        <?php include 'sidebar.php'; ?>
+        <?php include 'includes/header.php'; ?>
+        <?php include 'includes/sidebar.php'; ?>
         <div id="overlay" class="overlay"></div>
         <main class="content" id="mainContent">
             <div class="profile-container">
@@ -185,6 +184,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['do'] ?? '') === 'u
             </div>
         </main>
     </div>
-    <script src="app.js"></script>
+    <script src="assets/js/app.js"></script>
 </body>
 </html>

@@ -13,7 +13,7 @@
         $u_name = htmlspecialchars($u['name'] ?? 'User');
         $u_avatar = $u['avatar'] ?? '';
         $u_src = '';
-        if ($u_avatar && file_exists(__DIR__ . '/' . $u_avatar)) {
+        if ($u_avatar && file_exists(dirname(__DIR__) . '/' . $u_avatar)) {
             $u_src = $u_avatar;
         } else {
             $u_initial = strtoupper(substr((string)$u_name, 0, 1));
