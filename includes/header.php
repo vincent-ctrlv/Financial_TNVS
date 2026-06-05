@@ -1,3 +1,10 @@
+<?php
+$_hWebRoot = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+if (in_array(basename(dirname($_SERVER['SCRIPT_NAME'])), ['modules','admin','auth'])) {
+    $_hWebRoot = dirname($_hWebRoot);
+}
+$_hWebRoot = rtrim($_hWebRoot, '/\\');
+?>
 <header class="app-header">
     <div class="header-left" style="display:flex; align-items:center; gap:24px;">
         <button id="menuToggle" class="icon-btn" aria-label="Toggle menu"><span></span><span></span><span></span></button>
@@ -23,6 +30,6 @@
         ?>
         <img src="<?php echo $u_src; ?>" alt="head-avatar" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid rgba(40,167,69,0.2);">
         <span id="currentUser" style="font-weight:600; color:var(--text); font-size:14px;">Welcome, <?php echo $u_name; ?></span>
-        <a href="logout.php" class="text-btn" style="color:var(--muted); font-size:13px; text-decoration:none; font-weight:600; margin-left:8px;">Logout</a>
+        <a href="<?php echo $_hWebRoot; ?>/auth/logout.php" class="text-btn" style="color:var(--muted); font-size:13px; text-decoration:none; font-weight:600; margin-left:8px;">Logout</a>
     </div>
 </header>

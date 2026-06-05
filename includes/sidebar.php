@@ -4,51 +4,58 @@ function is_active($p) {
     global $currentPage;
     return $currentPage === $p ? 'active' : '';
 }
+// Build a root-relative base path that works from any subfolder
+$_webRoot = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+// If we're inside a subfolder (modules/, admin/, auth/), go up one level
+if (in_array(basename(dirname($_SERVER['SCRIPT_NAME'])), ['modules','admin','auth'])) {
+    $_webRoot = dirname($_webRoot);
+}
+$_webRoot = rtrim($_webRoot, '/\\');
 ?>
 <nav id="sidebar" class="sidebar">
     <div class="group">
         <h4>Main</h4>
         <?php if (can_access('dashboard')): ?>
-        <a class="nav <?php echo is_active('dashboard.php'); ?>" href="dashboard.php"><span>Dashboard</span></a>
+        <a class="nav <?php echo is_active('dashboard.php'); ?>" href="<?php echo $_webRoot; ?>/dashboard.php"><span>Dashboard</span></a>
         <?php endif; ?>
     </div>
     
     <div class="group">
         <h4>Accounts Management</h4>
         <?php if (can_access('ledger')): ?>
-        <a class="nav <?php echo is_active('ledger.php'); ?>" href="ledger.php"><span>General Ledger</span></a>
+        <a class="nav <?php echo is_active('ledger.php'); ?>" href="<?php echo $_webRoot; ?>/modules/ledger.php"><span>General Ledger</span></a>
         <?php endif; ?>
         <?php if (can_access('accounts_receivable')): ?>
-        <a class="nav <?php echo is_active('accounts_receivable.php'); ?>" href="accounts_receivable.php"><span>Accounts Receivable</span></a>
+        <a class="nav <?php echo is_active('accounts_receivable.php'); ?>" href="<?php echo $_webRoot; ?>/modules/accounts_receivable.php"><span>Accounts Receivable</span></a>
         <?php endif; ?>
         <?php if (can_access('accounts_payable')): ?>
-        <a class="nav <?php echo is_active('accounts_payable.php'); ?>" href="accounts_payable.php"><span>Accounts Payable</span></a>
+        <a class="nav <?php echo is_active('accounts_payable.php'); ?>" href="<?php echo $_webRoot; ?>/modules/accounts_payable.php"><span>Accounts Payable</span></a>
         <?php endif; ?>
     </div>
     
     <div class="group">
         <h4>Financial Operations</h4>
         <?php if (can_access('disbursement')): ?>
-        <a class="nav <?php echo is_active('disbursement.php'); ?>" href="disbursement.php"><span>Disbursement</span></a>
+        <a class="nav <?php echo is_active('disbursement.php'); ?>" href="<?php echo $_webRoot; ?>/modules/disbursement.php"><span>Disbursement</span></a>
         <?php endif; ?>
         <?php if (can_access('collection')): ?>
-        <a class="nav <?php echo is_active('collection.php'); ?>" href="collection.php"><span>Collection</span></a>
+        <a class="nav <?php echo is_active('collection.php'); ?>" href="<?php echo $_webRoot; ?>/modules/collection.php"><span>Collection</span></a>
         <?php endif; ?>
         <?php if (can_access('budget')): ?>
-        <a class="nav <?php echo is_active('budget.php'); ?>" href="budget.php"><span>Budget</span></a>
+        <a class="nav <?php echo is_active('budget.php'); ?>" href="<?php echo $_webRoot; ?>/modules/budget.php"><span>Budget</span></a>
         <?php endif; ?>
     </div>
     
     <?php if (can_access('users')): ?>
     <div class="group">
         <h4>Administrative System</h4>
-        <a class="nav <?php echo is_active('users.php'); ?>" href="users.php"><span>Users Management</span></a>
+        <a class="nav <?php echo is_active('users.php'); ?>" href="<?php echo $_webRoot; ?>/admin/users.php"><span>Users Management</span></a>
     </div>
     <?php endif; ?>
 
     <!-- Sidebar profile at bottom -->
     <div class="sidebar-footer">
-        <a href="profile.php" class="sidebar-profile">
+        <a href="<?php echo $_webRoot; ?>/admin/profile.php" class="sidebar-profile">
             <?php
             $u = current_user();
             $u_name = htmlspecialchars($u['name'] ?? 'User');

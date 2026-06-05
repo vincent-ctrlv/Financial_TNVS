@@ -1,6 +1,6 @@
 <?php
-require_once __DIR__ . '/includes/auth.php'; // For session handling
-require_once __DIR__ . '/includes/mailer.php';
+require_once __DIR__ . '/../includes/auth.php'; // For session handling
+require_once __DIR__ . '/../includes/mailer.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();

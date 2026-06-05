@@ -1,8 +1,8 @@
 <?php
-require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/../includes/auth.php';
 require_login();
 require_access('collection');
-require __DIR__ . '/includes/db.php';
+require __DIR__ . '/../includes/db.php';
 $user = current_user();
 
 
@@ -87,12 +87,12 @@ usort($rows, function($a, $b){
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Collection - TNVS</title>
-	<link rel="stylesheet" href="assets/css/style.css">
+	<link rel="stylesheet" href="../assets/css/style.css">
 </head>
 <body>
 	<div id="app" class="app">
-		<?php include 'includes/header.php'; ?>
-		<?php include 'includes/sidebar.php'; ?>
+		<?php include '../includes/header.php'; ?>
+		<?php include '../includes/sidebar.php'; ?>
 
 		<div id="overlay" class="overlay"></div>
 		<main class="content" id="mainContent">
@@ -144,6 +144,6 @@ usort($rows, function($a, $b){
 			</section>
 		</main>
 	</div>
-	<script src="assets/js/app.js"></script>
+	<script src="../assets/js/app.js"></script>
 </body>
 </html>

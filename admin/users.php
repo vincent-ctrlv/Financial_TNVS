@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/../includes/auth.php';
 require_access('users');
 $user = current_user();
 
@@ -20,12 +20,12 @@ if ($stmt = $mysqli->prepare("SELECT user_id, name, email, role FROM users ORDER
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Users Management - TNVS</title>
-	<link rel="stylesheet" href="assets/css/style.css">
+	<link rel="stylesheet" href="../assets/css/style.css">
 </head>
 <body>
 	<div id="app" class="app">
-		<?php include 'includes/header.php'; ?>
-		<?php include 'includes/sidebar.php'; ?>
+		<?php include '../includes/header.php'; ?>
+		<?php include '../includes/sidebar.php'; ?>
 
 		<div id="overlay" class="overlay"></div>
 		<main class="content" id="mainContent">
@@ -125,6 +125,13 @@ if ($stmt = $mysqli->prepare("SELECT user_id, name, email, role FROM users ORDER
             </div>
         </div>
 	</div>
-	<script src="assets/js/app.js"></script>
+						<script>
+							window._userApiUrl = '<?php
+								$_apiRoot = rtrim(dirname($_SERVER["SCRIPT_NAME"]), "/\\\\");
+								if (in_array(basename(dirname($_SERVER["SCRIPT_NAME"])), ["modules","admin","auth"])) { $_apiRoot = dirname($_apiRoot); }
+								echo rtrim($_apiRoot, "/\\\\") . "/admin/user_api.php";
+							?>';
+						</script>
+	<script src="../assets/js/app.js"></script>
 </body>
 </html>

@@ -113,7 +113,7 @@
 		var form = e.target;
 		var formData = new FormData(form);
 		
-		fetch('user_api.php', {
+		fetch(window._userApiUrl || 'user_api.php', {
 			method: 'POST',
 			body: formData
 		})
@@ -139,7 +139,7 @@
 		formData.append('user_id', id);
 		formData.append('_csrf', qs('input[name="_csrf"]').value);
 
-		fetch('user_api.php', {
+		fetch(window._userApiUrl || 'user_api.php', {
 			method: 'POST',
 			body: formData
 		})

@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // If this is being used as a standalone gate (pre-login), the caller is
         // responsible for setting $_SESSION['user'] before redirecting here.
         if (!empty($_SESSION['user'])) {
-            header('Location: dashboard.php');
+            header('Location: ../dashboard.php');
         } else {
             // Not logged in — redirect to login so credentials are entered properly.
             header('Location: login.php?otp_verified=1');
