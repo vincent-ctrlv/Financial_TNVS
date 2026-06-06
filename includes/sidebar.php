@@ -64,7 +64,7 @@ $_webRoot = rtrim($_webRoot, '/\\');
             // Determine source: use upload if exists, otherwise fallback to premium SVG
             $u_src = '';
             if ($u_avatar && file_exists(dirname(__DIR__) . '/' . $u_avatar)) {
-                $u_src = $u_avatar;
+                $u_src = $_webRoot . '/' . $u_avatar;
             } else {
                 $u_initial = strtoupper(substr((string)$u_name, 0, 1));
                 // Use literal primary color #28a745 (var doesn't work in data:img)

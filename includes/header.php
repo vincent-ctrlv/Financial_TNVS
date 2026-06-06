@@ -21,7 +21,7 @@ $_hWebRoot = rtrim($_hWebRoot, '/\\');
         $u_avatar = $u['avatar'] ?? '';
         $u_src = '';
         if ($u_avatar && file_exists(dirname(__DIR__) . '/' . $u_avatar)) {
-            $u_src = $u_avatar;
+            $u_src = $_hWebRoot . '/' . $u_avatar;
         } else {
             $u_initial = strtoupper(substr((string)$u_name, 0, 1));
             $u_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#28a745" fill-opacity="0.1"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-family="Segoe UI, Arial" font-size="64" fill="#28a745" font-weight="800">'.$u_initial.'</text></svg>';

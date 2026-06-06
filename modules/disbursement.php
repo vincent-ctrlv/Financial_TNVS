@@ -90,7 +90,7 @@ $_maxDisbMethod = max(array_values($byMethod) ?: [1]);
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Disbursement - TNVS</title>
-	<link rel="stylesheet" href="../assets/css/style.css">
+	<link rel="stylesheet" href="../assets/css/style.css?v=1.0.2">
 </head>
 <body>
 	<div id="app" class="app">

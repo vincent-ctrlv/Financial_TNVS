@@ -23,7 +23,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Login - SakaySaya</title>
-	<link rel="stylesheet" href="../assets/css/style.css">
+	<link rel="stylesheet" href="../assets/css/style.css?v=1.0.2">
+	<style>
+		html, body {
+			overflow: hidden !important;
+			scrollbar-gutter: auto !important;
+		}
+	</style>
 </head>
 <body>
 	<div id="login" class="login">
@@ -41,9 +47,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				</label>
 				<div class="error-message"><?php echo htmlspecialchars($error); ?></div>
 				<button type="submit">Sign in</button>
-				<div style="margin-top: 15px; text-align: center;">
-					<a href="send_otp.php" style="color: var(--primary); text-decoration: none; font-size: 14px;">Verify via OTP</a>
-				</div>
 			</form>
 		</div>
 	</div>

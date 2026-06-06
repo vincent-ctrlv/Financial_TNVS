@@ -62,7 +62,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['do'] ?? '') === 'u
         if ($error === '') {
             $avatarPath = $userRow['avatar'] ?? '';
             if (isset($_FILES['avatar']) && is_uploaded_file($_FILES['avatar']['tmp_name'])) {
-                $dir = __DIR__ . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'avatars';
+                $dir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'avatars';
                 if (!is_dir($dir)) { @mkdir($dir, 0777, true); }
                 $tmp = $_FILES['avatar']['tmp_name'];
                 $info = @getimagesize($tmp);
@@ -101,7 +101,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['do'] ?? '') === 'u
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/style.css?v=1.0.2">
     <style>
         .profile-container { max-width: 900px; margin: 0 auto; }
         .profile-card { background: white; border-radius: 24px; padding: 40px; box-shadow: var(--shadow-md); border: 1px solid rgba(40,167,69,0.1); }
@@ -137,8 +137,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['do'] ?? '') === 'u
                                     <?php
                                     $u_avatar = $userRow['avatar'] ?? '';
                                     $found = false;
-                                    if ($u_avatar && file_exists(__DIR__ . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $u_avatar))) {
-                                        $u_src = $u_avatar;
+                                    if ($u_avatar && file_exists(dirname(__DIR__) . '/' . $u_avatar)) {
+                                        $u_src = $_hWebRoot . '/' . $u_avatar;
                                         $found = true;
                                     } else {
                                         $u_initial = strtoupper(substr((string)$userRow['name'], 0, 1));
