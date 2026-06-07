@@ -79,6 +79,21 @@
 	} catch(e){}
 	// --- User Management UI Logic ---
 
+	function toggleDriverFields(){
+		var roleSelect = qs('#formRole');
+		var driverFields = qs('#driverFields');
+		if (!roleSelect || !driverFields) return;
+		if (roleSelect.value === 'driver') {
+			driverFields.style.display = 'flex';
+		} else {
+			driverFields.style.display = 'none';
+		}
+	}
+
+	var roleSelect = qs('#formRole');
+	if (roleSelect) {
+		roleSelect.addEventListener('change', toggleDriverFields);
+	}
 
 	window.hideUserModal = function(){
 		if (qs('#userModal')) qs('#userModal').classList.remove('show');
@@ -93,6 +108,10 @@
 		qs('#formRole').value = 'driver';
 		qs('#formPassword').required = true;
 		qs('#formPassword').value = '';
+		if (qs('#formPlateNo')) qs('#formPlateNo').value = '';
+		if (qs('#formReferenceNo')) qs('#formReferenceNo').value = '';
+		if (qs('#formAddress')) qs('#formAddress').value = '';
+		toggleDriverFields();
 		qs('#userModal').classList.add('show');
 	};
 
@@ -105,6 +124,10 @@
 		qs('#formRole').value = u.role;
 		qs('#formPassword').required = false;
 		qs('#formPassword').value = '';
+		if (qs('#formPlateNo')) qs('#formPlateNo').value = u.plate_no || '';
+		if (qs('#formReferenceNo')) qs('#formReferenceNo').value = u.reference_no || '';
+		if (qs('#formAddress')) qs('#formAddress').value = u.address || '';
+		toggleDriverFields();
 		qs('#userModal').classList.add('show');
 	};
 

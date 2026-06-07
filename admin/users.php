@@ -5,7 +5,7 @@ $user = current_user();
 
 // Fetch users
 $users = [];
-if ($stmt = $mysqli->prepare("SELECT user_id, name, email, role FROM users ORDER BY name ASC")) {
+if ($stmt = $mysqli->prepare("SELECT user_id, name, email, role, plate_no, reference_no, address FROM users ORDER BY name ASC")) {
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
@@ -55,7 +55,7 @@ if ($stmt = $mysqli->prepare("SELECT user_id, name, email, role FROM users ORDER
                             </thead>
                             <tbody>
                                 <?php foreach ($users as $u): ?>
-                                <tr data-id="<?php echo htmlspecialchars($u['user_id']); ?>" data-name="<?php echo htmlspecialchars($u['name']); ?>" data-email="<?php echo htmlspecialchars($u['email']); ?>" data-role="<?php echo htmlspecialchars($u['role']); ?>">
+                                <tr data-id="<?php echo htmlspecialchars($u['user_id']); ?>" data-name="<?php echo htmlspecialchars($u['name']); ?>" data-email="<?php echo htmlspecialchars($u['email']); ?>" data-role="<?php echo htmlspecialchars($u['role']); ?>" data-plate="<?php echo htmlspecialchars($u['plate_no'] ?? ''); ?>" data-reference="<?php echo htmlspecialchars($u['reference_no'] ?? ''); ?>" data-address="<?php echo htmlspecialchars($u['address'] ?? ''); ?>">
                                     <td><?php echo htmlspecialchars($u['user_id']); ?></td>
                                     <td style="font-weight:600"><?php echo htmlspecialchars($u['name']); ?></td>
                                     <td><?php echo htmlspecialchars($u['email']); ?></td>
@@ -116,6 +116,24 @@ if ($stmt = $mysqli->prepare("SELECT user_id, name, email, role FROM users ORDER
                             <input type="password" name="password" id="formPassword" placeholder="Leave blank to keep current">
                         </label>
                         
+                        <!-- Driver Specific Fields -->
+                        <div id="driverFields" style="grid-column: 1 / -1; display: none; flex-direction: column; gap: 12px; margin-top: 6px; padding-top: 12px; border-top: 1px dashed var(--border);">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                <label style="margin: 0;">
+                                    Plate Number
+                                    <input type="text" name="plate_no" id="formPlateNo" placeholder="e.g. ABC 1234">
+                                </label>
+                                <label style="margin: 0;">
+                                    Reference Number
+                                    <input type="text" name="reference_no" id="formReferenceNo" placeholder="e.g. REF-7890">
+                                </label>
+                            </div>
+                            <label style="margin: 0;">
+                                Address
+                                <input type="text" name="address" id="formAddress" placeholder="Enter full address">
+                            </label>
+                        </div>
+                        
                         <div style="grid-column: 1 / -1; display:flex; justify-content:flex-end; gap:12px; margin-top:12px;">
                             <button type="button" class="text-btn" onclick="hideUserModal()">Cancel</button>
                             <button type="submit" class="btn-small">Save User</button>
@@ -128,7 +146,7 @@ if ($stmt = $mysqli->prepare("SELECT user_id, name, email, role FROM users ORDER
 						<script>
 							window._userApiUrl = '<?php
 								$_apiRoot = rtrim(dirname($_SERVER["SCRIPT_NAME"]), "/\\\\");
-								if (in_array(basename(dirname($_SERVER["SCRIPT_NAME"])), ["modules","admin","auth"])) { $_apiRoot = dirname($_apiRoot); }
+								if (in_array(basename(dirname($_SERVER["SCRIPT_NAME"])), ["modules","admin","auth","user"])) { $_apiRoot = dirname($_apiRoot); }
 								echo rtrim($_apiRoot, "/\\\\") . "/admin/user_api.php";
 							?>';
 						</script>

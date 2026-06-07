@@ -25,6 +25,9 @@ if ($method === 'POST') {
         $email = trim($_POST['email'] ?? '');
         $role = trim($_POST['role'] ?? 'driver');
         $password = $_POST['password'] ?? '';
+        $plate_no = ($role === 'driver' && trim($_POST['plate_no'] ?? '') !== '') ? trim($_POST['plate_no']) : null;
+        $reference_no = ($role === 'driver' && trim($_POST['reference_no'] ?? '') !== '') ? trim($_POST['reference_no']) : null;
+        $address = ($role === 'driver' && trim($_POST['address'] ?? '') !== '') ? trim($_POST['address']) : null;
 
         if (!$name || !$email) {
             send_json(['error' => 'Name and Email are required'], 400);
@@ -46,11 +49,11 @@ if ($method === 'POST') {
             // Update
             if ($password) {
                 $hash = password_hash($password, PASSWORD_BCRYPT);
-                $stmt = $mysqli->prepare("UPDATE users SET name=?, email=?, role=?, password_hash=? WHERE user_id=?");
-                $stmt->bind_param("ssssi", $name, $email, $role, $hash, $id);
+                $stmt = $mysqli->prepare("UPDATE users SET name=?, email=?, role=?, password_hash=?, plate_no=?, reference_no=?, address=? WHERE user_id=?");
+                $stmt->bind_param("sssssssi", $name, $email, $role, $hash, $plate_no, $reference_no, $address, $id);
             } else {
-                $stmt = $mysqli->prepare("UPDATE users SET name=?, email=?, role=? WHERE user_id=?");
-                $stmt->bind_param("sssi", $name, $email, $role, $id);
+                $stmt = $mysqli->prepare("UPDATE users SET name=?, email=?, role=?, plate_no=?, reference_no=?, address=? WHERE user_id=?");
+                $stmt->bind_param("ssssssi", $name, $email, $role, $plate_no, $reference_no, $address, $id);
             }
         } else {
             // Check if email already exists
@@ -69,8 +72,8 @@ if ($method === 'POST') {
                 send_json(['error' => 'Password is required for new users'], 400);
             }
             $hash = password_hash($password, PASSWORD_BCRYPT);
-            $stmt = $mysqli->prepare("INSERT INTO users (name, email, role, password_hash) VALUES (?, ?, ?, ?)");
-            $stmt->bind_param("ssss", $name, $email, $role, $hash);
+            $stmt = $mysqli->prepare("INSERT INTO users (name, email, role, password_hash, plate_no, reference_no, address) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("sssssss", $name, $email, $role, $hash, $plate_no, $reference_no, $address);
         }
 
         if ($stmt && $stmt->execute()) {

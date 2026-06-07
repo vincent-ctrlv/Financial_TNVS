@@ -6,8 +6,8 @@ function is_active($p) {
 }
 // Build a root-relative base path that works from any subfolder
 $_webRoot = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
-// If we're inside a subfolder (modules/, admin/, auth/), go up one level
-if (in_array(basename(dirname($_SERVER['SCRIPT_NAME'])), ['modules','admin','auth'])) {
+// If we're inside a subfolder (modules/, admin/, auth/, user/), go up one level
+if (in_array(basename(dirname($_SERVER['SCRIPT_NAME'])), ['modules','admin','auth','user'])) {
     $_webRoot = dirname($_webRoot);
 }
 $_webRoot = rtrim($_webRoot, '/\\');
@@ -55,7 +55,7 @@ $_webRoot = rtrim($_webRoot, '/\\');
 
     <!-- Sidebar profile at bottom -->
     <div class="sidebar-footer">
-        <a href="<?php echo $_webRoot; ?>/admin/profile.php" class="sidebar-profile">
+        <a href="<?php echo $_webRoot; ?>/user/profile.php" class="sidebar-profile">
             <?php
             $u = current_user();
             $u_name = htmlspecialchars($u['name'] ?? 'User');

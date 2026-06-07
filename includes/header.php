@@ -1,6 +1,6 @@
 <?php
 $_hWebRoot = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
-if (in_array(basename(dirname($_SERVER['SCRIPT_NAME'])), ['modules','admin','auth'])) {
+if (in_array(basename(dirname($_SERVER['SCRIPT_NAME'])), ['modules','admin','auth','user'])) {
     $_hWebRoot = dirname($_hWebRoot);
 }
 $_hWebRoot = rtrim($_hWebRoot, '/\\');
