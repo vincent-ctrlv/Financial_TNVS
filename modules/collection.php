@@ -7,34 +7,80 @@ $user = current_user();
 
 
 // Auto-update overdue statuses for receivables before reporting
-$mysqli->query("UPDATE accountsreceivable SET status='overdue' WHERE status='pending' AND due_date < CURDATE()");
+if ($user['role'] === 'driver') {
+	$stmt = $mysqli->prepare("UPDATE accountsreceivable SET status='overdue' WHERE status='pending' AND due_date < CURDATE() AND user_id = ?");
+	if ($stmt) {
+		$stmt->bind_param('i', $user['id']);
+		$stmt->execute();
+		$stmt->close();
+	}
+} else {
+	$mysqli->query("UPDATE accountsreceivable SET status='overdue' WHERE status='pending' AND due_date < CURDATE()");
+}
 
 $rows = [];$totals = ['pending'=>0,'paid'=>0,'overdue'=>0];
 // Compute totals across all AR
-if ($res = $mysqli->query("SELECT status, amount_due FROM accountsreceivable")) {
-	while ($row = $res->fetch_assoc()) {
-		$st = strtolower((string)($row['status'] ?? ''));
-		$amt = (float)($row['amount_due'] ?? 0);
-		if ($st === 'paid') {
-			$totals['paid'] += $amt;
-		} elseif ($st === 'overdue') {
-			$totals['overdue'] += $amt;
-		} else {
-			$totals['pending'] += $amt;
+if ($user['role'] === 'driver') {
+	$stmt = $mysqli->prepare("SELECT status, amount_due FROM accountsreceivable WHERE user_id = ?");
+	if ($stmt) {
+		$stmt->bind_param('i', $user['id']);
+		$stmt->execute();
+		$res = $stmt->get_result();
+		while ($row = $res->fetch_assoc()) {
+			$st = strtolower((string)($row['status'] ?? ''));
+			$amt = (float)($row['amount_due'] ?? 0);
+			if ($st === 'paid') {
+				$totals['paid'] += $amt;
+			} elseif ($st === 'overdue') {
+				$totals['overdue'] += $amt;
+			} else {
+				$totals['pending'] += $amt;
+			}
 		}
+		$stmt->close();
 	}
-	$res->free();
+} else {
+	if ($res = $mysqli->query("SELECT status, amount_due FROM accountsreceivable")) {
+		while ($row = $res->fetch_assoc()) {
+			$st = strtolower((string)($row['status'] ?? ''));
+			$amt = (float)($row['amount_due'] ?? 0);
+			if ($st === 'paid') {
+				$totals['paid'] += $amt;
+			} elseif ($st === 'overdue') {
+				$totals['overdue'] += $amt;
+			} else {
+				$totals['pending'] += $amt;
+			}
+		}
+		$res->free();
+	}
 }
+
 // Table filter: all | pending | paid | overdue (default: all)
 $statusFilter = strtolower(trim($_GET['status'] ?? 'all'));
 if (!in_array($statusFilter, ['all','pending','paid','overdue'], true)) { $statusFilter = 'all'; }
+
 // Pull AR (inflows)
-if ($statusFilter === 'all') {
-	$stmtAr = $mysqli->prepare("SELECT ar.ar_id, ar.user_id, u.name AS user_name, ar.amount_due, ar.due_date, ar.method, ar.status FROM accountsreceivable ar LEFT JOIN users u ON u.user_id = ar.user_id ORDER BY ar.due_date ASC, ar.ar_id DESC LIMIT 200");
+if ($user['role'] === 'driver') {
+	if ($statusFilter === 'all') {
+		$stmtAr = $mysqli->prepare("SELECT ar.ar_id, ar.user_id, u.name AS user_name, ar.amount_due, ar.due_date, ar.method, ar.status FROM accountsreceivable ar LEFT JOIN users u ON u.user_id = ar.user_id WHERE ar.user_id = ? ORDER BY ar.due_date ASC, ar.ar_id DESC LIMIT 200");
+		if ($stmtAr) {
+			$stmtAr->bind_param('i', $user['id']);
+		}
+	} else {
+		$stmtAr = $mysqli->prepare("SELECT ar.ar_id, ar.user_id, u.name AS user_name, ar.amount_due, ar.due_date, ar.method, ar.status FROM accountsreceivable ar LEFT JOIN users u ON u.user_id = ar.user_id WHERE ar.status = ? AND ar.user_id = ? ORDER BY ar.due_date ASC, ar.ar_id DESC LIMIT 200");
+		if ($stmtAr) {
+			$stmtAr->bind_param('si', $statusFilter, $user['id']);
+		}
+	}
 } else {
-	$stmtAr = $mysqli->prepare("SELECT ar.ar_id, ar.user_id, u.name AS user_name, ar.amount_due, ar.due_date, ar.method, ar.status FROM accountsreceivable ar LEFT JOIN users u ON u.user_id = ar.user_id WHERE ar.status = ? ORDER BY ar.due_date ASC, ar.ar_id DESC LIMIT 200");
-	if ($stmtAr) {
-		$stmtAr->bind_param('s', $statusFilter);
+	if ($statusFilter === 'all') {
+		$stmtAr = $mysqli->prepare("SELECT ar.ar_id, ar.user_id, u.name AS user_name, ar.amount_due, ar.due_date, ar.method, ar.status FROM accountsreceivable ar LEFT JOIN users u ON u.user_id = ar.user_id ORDER BY ar.due_date ASC, ar.ar_id DESC LIMIT 200");
+	} else {
+		$stmtAr = $mysqli->prepare("SELECT ar.ar_id, ar.user_id, u.name AS user_name, ar.amount_due, ar.due_date, ar.method, ar.status FROM accountsreceivable ar LEFT JOIN users u ON u.user_id = ar.user_id WHERE ar.status = ? ORDER BY ar.due_date ASC, ar.ar_id DESC LIMIT 200");
+		if ($stmtAr) {
+			$stmtAr->bind_param('s', $statusFilter);
+		}
 	}
 }
 
@@ -50,12 +96,26 @@ if ($stmtAr) {
 
 // Pull AP (outflows) - treat as 'AP' source, skip when filtering 'overdue'
 if ($statusFilter === 'all' || $statusFilter === 'pending' || $statusFilter === 'paid') {
-	if ($statusFilter === 'all') {
-		$stmtAp = $mysqli->prepare("SELECT ap.ap_id, ap.user_id, u.name AS user_name, ap.amount_due, ap.due_date, ap.method, ap.status FROM accountspayable ap LEFT JOIN users u ON u.user_id = ap.user_id ORDER BY ap.due_date ASC, ap.ap_id DESC LIMIT 200");
+	if ($user['role'] === 'driver') {
+		if ($statusFilter === 'all') {
+			$stmtAp = $mysqli->prepare("SELECT ap.ap_id, ap.user_id, u.name AS user_name, ap.amount_due, ap.due_date, ap.method, ap.status FROM accountspayable ap LEFT JOIN users u ON u.user_id = ap.user_id WHERE ap.user_id = ? ORDER BY ap.due_date ASC, ap.ap_id DESC LIMIT 200");
+			if ($stmtAp) {
+				$stmtAp->bind_param('i', $user['id']);
+			}
+		} else {
+			$stmtAp = $mysqli->prepare("SELECT ap.ap_id, ap.user_id, u.name AS user_name, ap.amount_due, ap.due_date, ap.method, ap.status FROM accountspayable ap LEFT JOIN users u ON u.user_id = ap.user_id WHERE ap.status = ? AND ap.user_id = ? ORDER BY ap.due_date ASC, ap.ap_id DESC LIMIT 200");
+			if ($stmtAp) {
+				$stmtAp->bind_param('si', $statusFilter, $user['id']);
+			}
+		}
 	} else {
-		$stmtAp = $mysqli->prepare("SELECT ap.ap_id, ap.user_id, u.name AS user_name, ap.amount_due, ap.due_date, ap.method, ap.status FROM accountspayable ap LEFT JOIN users u ON u.user_id = ap.user_id WHERE ap.status = ? ORDER BY ap.due_date ASC, ap.ap_id DESC LIMIT 200");
-		if ($stmtAp) {
-			$stmtAp->bind_param('s', $statusFilter);
+		if ($statusFilter === 'all') {
+			$stmtAp = $mysqli->prepare("SELECT ap.ap_id, ap.user_id, u.name AS user_name, ap.amount_due, ap.due_date, ap.method, ap.status FROM accountspayable ap LEFT JOIN users u ON u.user_id = ap.user_id ORDER BY ap.due_date ASC, ap.ap_id DESC LIMIT 200");
+		} else {
+			$stmtAp = $mysqli->prepare("SELECT ap.ap_id, ap.user_id, u.name AS user_name, ap.amount_due, ap.due_date, ap.method, ap.status FROM accountspayable ap LEFT JOIN users u ON u.user_id = ap.user_id WHERE ap.status = ? ORDER BY ap.due_date ASC, ap.ap_id DESC LIMIT 200");
+			if ($stmtAp) {
+				$stmtAp->bind_param('s', $statusFilter);
+			}
 		}
 	}
 
@@ -69,6 +129,7 @@ if ($statusFilter === 'all' || $statusFilter === 'pending' || $statusFilter === 
 		$stmtAp->close();
 	}
 }
+
 // Sort combined by due_date ASC, then newest id DESC
 usort($rows, function($a, $b){
 	$da = strtotime((string)($a['due_date'] ?? ''));
@@ -97,7 +158,7 @@ usort($rows, function($a, $b){
 		<div id="overlay" class="overlay"></div>
 		<main class="content" id="mainContent">
 			<section class="section active">
-				<h3>Collection</h3>
+				<h3><?php echo ($user['role'] === 'driver') ? 'My Collections & Statements' : 'Collection'; ?></h3>
 				<div class="cards">
 					<div class="card success">
 						<h4>Paid</h4>
@@ -113,7 +174,7 @@ usort($rows, function($a, $b){
 					</div>
 				</div>
 				<div class="chart-card">
-					<h4>Collections</h4>
+					<h4><?php echo ($user['role'] === 'driver') ? 'Personal Accounts Statement' : 'Collections'; ?></h4>
 					<div style="margin:10px 0; display:flex; gap:8px; flex-wrap:wrap;">
 						<a class="btn-small" href="collection.php" style="<?php echo ($statusFilter==='all')?'background:#28a745;color:#fff;':''; ?>">All</a>
 						<a class="btn-small" href="collection.php?status=pending" style="<?php echo ($statusFilter==='pending')?'background:#f0ad4e;color:#fff;':''; ?>">Pending</a>
