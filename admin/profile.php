@@ -101,7 +101,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['do'] ?? '') === 'u
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="../assets/css/style.css?v=1.0.2">
+    <link rel="stylesheet" href="../assets/css/style.css?v=1.0.5">
     <style>
         .profile-container { max-width: 900px; margin: 0 auto; }
         .profile-card { background: white; border-radius: 24px; padding: 40px; box-shadow: var(--shadow-md); border: 1px solid rgba(40,167,69,0.1); }

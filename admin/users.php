@@ -20,7 +20,7 @@ if ($stmt = $mysqli->prepare("SELECT user_id, name, email, role FROM users ORDER
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Users Management - TNVS</title>
-	<link rel="stylesheet" href="../assets/css/style.css?v=1.0.2">
+	<link rel="stylesheet" href="../assets/css/style.css?v=1.0.5">
 </head>
 <body>
 	<div id="app" class="app">

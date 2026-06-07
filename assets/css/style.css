@@ -874,9 +874,9 @@ a.btn-small {
 }
 
 .barline { 
-  height: 14px; 
-  background: rgba(248, 249, 250, 0.8); 
-  border: 1px solid var(--border);
+  height: 8px; 
+  background: rgba(226, 232, 240, 0.6); 
+  border: none;
   border-radius: 999px; 
   overflow: hidden; 
   position: relative;
@@ -900,6 +900,7 @@ a.btn-small {
 .barline span { 
   display: block; 
   height: 100%; 
+  width: var(--final-width, 0%);
   background: var(--gradient-primary);
   animation: barlineGrow 2s ease-out;
   border-radius: 999px;
@@ -1528,6 +1529,184 @@ a.btn-small {
     grid-template-columns: 1fr;
   }
 }
+
+/* Vertical Breakdown Chart */
+.vertical-breakdown {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 24px 12px 12px;
+  min-height: 280px;
+  position: relative;
+  background-image: linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+  background-size: 100% 40px;
+}
+
+.vertical-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  gap: 10px;
+  transition: all var(--transition-bounce);
+  cursor: pointer;
+  z-index: 2;
+}
+
+.vertical-col:hover {
+  transform: translateY(-8px);
+}
+
+.vertical-col .value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+  text-align: center;
+  white-space: nowrap;
+  transition: all var(--transition-normal);
+}
+
+.vertical-col:hover .value {
+  transform: scale(1.08);
+}
+
+.v-barline {
+  width: 16px;
+  height: 180px;
+  background: rgba(226, 232, 240, 0.5);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  transition: all var(--transition-normal);
+}
+
+.vertical-col:hover .v-barline {
+  background: rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.v-barline span {
+  display: block;
+  width: 100%;
+  height: var(--final-height, 0%);
+  border-radius: 999px;
+  animation: barlineGrowVertical 2s ease-out;
+  transition: all var(--transition-normal);
+}
+
+.vertical-col:hover .v-barline span {
+  filter: brightness(1.05);
+  box-shadow: 0 0 15px var(--glow-color, rgba(40, 167, 69, 0.4));
+}
+
+.vertical-col .label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 4px;
+  transition: all var(--transition-normal);
+}
+
+.vertical-col:hover .label {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* Category-specific color schemes & glows */
+.vertical-col.col-fare {
+  --glow-color: rgba(59, 130, 246, 0.6);
+}
+.vertical-col.col-fare .v-barline span {
+  background: linear-gradient(to top, #2563eb, #60a5fa);
+}
+.vertical-col.col-fare:hover .value {
+  color: #2563eb;
+}
+
+.vertical-col.col-platform_fee {
+  --glow-color: rgba(139, 92, 246, 0.6);
+}
+.vertical-col.col-platform_fee .v-barline span {
+  background: linear-gradient(to top, #7c3aed, #a78bfa);
+}
+.vertical-col.col-platform_fee:hover .value {
+  color: #7c3aed;
+}
+
+.vertical-col.col-fuel {
+  --glow-color: rgba(245, 158, 11, 0.6);
+}
+.vertical-col.col-fuel .v-barline span {
+  background: linear-gradient(to top, #d97706, #fbbf24);
+}
+.vertical-col.col-fuel:hover .value {
+  color: #d97706;
+}
+
+.vertical-col.col-lease {
+  --glow-color: rgba(239, 68, 68, 0.6);
+}
+.vertical-col.col-lease .v-barline span {
+  background: linear-gradient(to top, #dc2626, #f87171);
+}
+.vertical-col.col-lease:hover .value {
+  color: #dc2626;
+}
+
+.vertical-col.col-incentive {
+  --glow-color: rgba(16, 185, 129, 0.6);
+}
+.vertical-col.col-incentive .v-barline span {
+  background: linear-gradient(to top, #059669, #34d399);
+}
+.vertical-col.col-incentive:hover .value {
+  color: #059669;
+}
+
+.vertical-col.col-payout {
+  --glow-color: rgba(6, 182, 212, 0.6);
+}
+.vertical-col.col-payout .v-barline span {
+  background: linear-gradient(to top, #0891b2, #22d3ee);
+}
+.vertical-col.col-payout:hover .value {
+  color: #0891b2;
+}
+
+@keyframes barlineGrowVertical {
+  from { 
+    height: 0 !important; 
+    opacity: 0;
+  }
+  to { 
+    height: var(--final-height) !important; 
+    opacity: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .vertical-breakdown {
+    gap: 8px;
+    padding: 16px 0;
+  }
+  .vertical-col .value {
+    font-size: 11px;
+  }
+  .vertical-col .label {
+    font-size: 11px;
+  }
+  .v-barline {
+    width: 12px;
+    height: 120px;
+  }
+}
+
 
 
 

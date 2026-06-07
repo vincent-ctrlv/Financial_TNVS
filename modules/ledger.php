@@ -25,7 +25,7 @@ $_maxLedger = max(array_values($totals) ?: [1]);
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>General Ledger - TNVS</title>
-	<link rel="stylesheet" href="../assets/css/style.css?v=1.0.2">
+	<link rel="stylesheet" href="../assets/css/style.css?v=1.0.5">
 </head>
 <body>
 	<div id="app" class="app">
@@ -39,7 +39,7 @@ $_maxLedger = max(array_values($totals) ?: [1]);
 				<div class="cards">
 					<div class="card">
 						<h4>Totals by Type</h4>
-						<div class="breakdown">
+						<div class="vertical-breakdown">
 							<?php foreach ([
 								'fare' => 'Fare',
 								'platform_fee' => 'Platform Fee',
@@ -47,11 +47,11 @@ $_maxLedger = max(array_values($totals) ?: [1]);
 								'lease' => 'Lease',
 								'incentive' => 'Incentive',
 								'payout' => 'Payout',
-							] as $key => $label): $val = (float)($totals[$key] ?? 0); $width = $_maxLedger > 0 ? max(2, round(($val / $_maxLedger) * 100)) : 2; ?>
-							<div class="breakdown-row">
-								<div class="label"><?php echo htmlspecialchars($label); ?></div>
-								<div class="barline"><span style="--final-width: <?php echo $width; ?>%;"></span></div>
+							] as $key => $label): $val = (float)($totals[$key] ?? 0); $height_pct = ($_maxLedger > 0 && $val > 0) ? round(($val / $_maxLedger) * 100) : 0; ?>
+							<div class="vertical-col col-<?php echo htmlspecialchars($key); ?>">
 								<div class="value">₱<?php echo number_format($val, 2); ?></div>
+								<div class="v-barline"><span style="--final-height: <?php echo $height_pct; ?>%;"></span></div>
+								<div class="label"><?php echo htmlspecialchars($label); ?></div>
 							</div>
 							<?php endforeach; ?>
 						</div>
