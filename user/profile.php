@@ -4,6 +4,7 @@ require_login();
 require_access('profile');
 require __DIR__ . '/../includes/db.php';
 $sessionUser = current_user();
+$canEdit = ($sessionUser['role'] ?? '') === 'admin';
 
 $success = '';$error = '';
 $uid = (int)($sessionUser['id'] ?? 0);
@@ -41,56 +42,61 @@ if (!$userRow) {
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['do'] ?? '') === 'update_profile') {
-    verify_csrf_or_die();
-    $name = trim($_POST['name'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $plate = trim($_POST['plate_no'] ?? '');
-    $ref = trim($_POST['reference_no'] ?? '');
-    $address = trim($_POST['address'] ?? '');
-
-    if ($uid <= 0) {
-        $error = 'Unable to update profile: User record not found in database. Please log in again.';
-    } elseif ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $error = 'Please provide valid name and email.';
+    // Only admins/superadmins are allowed to make changes
+    if (!$canEdit) {
+        $error = 'You do not have permission to edit profile information. Please contact an administrator.';
     } else {
-        if ($stmt = $mysqli->prepare('SELECT 1 FROM users WHERE email = ? AND user_id <> ? LIMIT 1')) {
-            $stmt->bind_param('si', $email, $uid);
-            $stmt->execute(); $stmt->store_result();
-            if ($stmt->num_rows > 0) { $error = 'Email already in use by another account.'; }
-            $stmt->close();
-        }
-        if ($error === '') {
-            $avatarPath = $userRow['avatar'] ?? '';
-            if (isset($_FILES['avatar']) && is_uploaded_file($_FILES['avatar']['tmp_name'])) {
-                $dir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'avatars';
-                if (!is_dir($dir)) { @mkdir($dir, 0777, true); }
-                $tmp = $_FILES['avatar']['tmp_name'];
-                $info = @getimagesize($tmp);
-                $mime = $info['mime'] ?? '';
-                $ext = ($mime === 'image/jpeg') ? '.jpg' : (($mime === 'image/png') ? '.png' : (($mime === 'image/gif') ? '.gif' : ''));
-                if ($ext !== '') {
-                    $target = $dir . DIRECTORY_SEPARATOR . $uid . $ext;
-                    foreach (['.jpg','.png','.gif'] as $e) { $p = $dir . DIRECTORY_SEPARATOR . $uid . $e; if ($e !== $ext && file_exists($p)) @unlink($p); }
-                    if (@move_uploaded_file($tmp, $target)) {
-                        $avatarPath = 'uploads/avatars/' . $uid . $ext;
+        verify_csrf_or_die();
+        $name = trim($_POST['name'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $plate = trim($_POST['plate_no'] ?? '');
+        $ref = trim($_POST['reference_no'] ?? '');
+        $address = trim($_POST['address'] ?? '');
+
+        if ($uid <= 0) {
+            $error = 'Unable to update profile: User record not found in database. Please log in again.';
+        } elseif ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $error = 'Please provide valid name and email.';
+        } else {
+            if ($stmt = $mysqli->prepare('SELECT 1 FROM users WHERE email = ? AND user_id <> ? LIMIT 1')) {
+                $stmt->bind_param('si', $email, $uid);
+                $stmt->execute(); $stmt->store_result();
+                if ($stmt->num_rows > 0) { $error = 'Email already in use by another account.'; }
+                $stmt->close();
+            }
+            if ($error === '') {
+                $avatarPath = $userRow['avatar'] ?? '';
+                if (isset($_FILES['avatar']) && is_uploaded_file($_FILES['avatar']['tmp_name'])) {
+                    $dir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'avatars';
+                    if (!is_dir($dir)) { @mkdir($dir, 0777, true); }
+                    $tmp = $_FILES['avatar']['tmp_name'];
+                    $info = @getimagesize($tmp);
+                    $mime = $info['mime'] ?? '';
+                    $ext = ($mime === 'image/jpeg') ? '.jpg' : (($mime === 'image/png') ? '.png' : (($mime === 'image/gif') ? '.gif' : ''));
+                    if ($ext !== '') {
+                        $target = $dir . DIRECTORY_SEPARATOR . $uid . $ext;
+                        foreach (['.jpg','.png','.gif'] as $e) { $p = $dir . DIRECTORY_SEPARATOR . $uid . $e; if ($e !== $ext && file_exists($p)) @unlink($p); }
+                        if (@move_uploaded_file($tmp, $target)) {
+                            $avatarPath = 'uploads/avatars/' . $uid . $ext;
+                        }
                     }
                 }
-            }
-            if ($stmt = $mysqli->prepare('UPDATE users SET name=?, email=?, plate_no=?, reference_no=?, address=?, avatar=? WHERE user_id=?')) {
-                $stmt->bind_param('ssssssi', $name, $email, $plate, $ref, $address, $avatarPath, $uid);
-                $ok = $stmt->execute(); $stmt->close();
-                if ($ok) {
-                    $success = 'Profile updated.';
-                    $_SESSION['user']['name'] = $name;
-                    $_SESSION['user']['email'] = $email;
-                    $_SESSION['user']['avatar'] = $avatarPath;
-                    log_audit_action($mysqli, 'update_profile', 'users');
+                if ($stmt = $mysqli->prepare('UPDATE users SET name=?, email=?, plate_no=?, reference_no=?, address=?, avatar=? WHERE user_id=?')) {
+                    $stmt->bind_param('ssssssi', $name, $email, $plate, $ref, $address, $avatarPath, $uid);
+                    $ok = $stmt->execute(); $stmt->close();
+                    if ($ok) {
+                        $success = 'Profile updated.';
+                        $_SESSION['user']['name'] = $name;
+                        $_SESSION['user']['email'] = $email;
+                        $_SESSION['user']['avatar'] = $avatarPath;
+                        log_audit_action($mysqli, 'update_profile', 'users');
+                    }
+                    else { $error = 'Failed to update profile.'; }
+                } else { $error = 'Internal error (prepare).'; }
+                if ($error === '') {
+                    header('Location: profile.php?updated=1');
+                    exit;
                 }
-                else { $error = 'Failed to update profile.'; }
-            } else { $error = 'Internal error (prepare).'; }
-            if ($error === '') {
-                header('Location: profile.php?updated=1');
-                exit;
             }
         }
     }
@@ -128,6 +134,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['do'] ?? '') === 'u
                     <h2 style="font-size: 32px; font-weight: 800; color: var(--primary); margin-bottom: 32px; letter-spacing: -1px;">My Profile</h2>
                     <?php if ($success || isset($_GET['updated'])): ?><div class="notification success show" style="position:static; margin-bottom:24px; transform:none; max-width:none; width:100%;">Profile updated successfully.</div><?php endif; ?>
                     <?php if ($error): ?><div class="notification danger show" style="position:static; margin-bottom:24px; transform:none; max-width:none; width:100%;"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
+                    <?php if (!$canEdit): ?>
+                    <div style="display:flex; align-items:center; gap:14px; background:rgba(99,102,241,0.08); border:1.5px solid rgba(99,102,241,0.25); border-radius:14px; padding:16px 22px; margin-bottom:28px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                        <span style="font-size:14px; color:#6366f1; font-weight:600;">Your profile information is managed by an administrator. Please contact your admin to request any changes.</span>
+                    </div>
+                    <?php endif; ?>
                     <div class="profile-card">
                         <form method="post" enctype="multipart/form-data">
                             <?php echo csrf_field(); ?>
@@ -150,34 +162,41 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['do'] ?? '') === 'u
                                 </div>
                                 <div style="flex:1;">
                                     <h3 style="font-size:24px; font-weight:800; color:var(--text); margin-bottom:8px;">Account Details</h3>
-                                    <p style="color:var(--muted); font-size:14px; margin-bottom:16px;">Update your photo and personal information here.</p>
+                                    <p style="color:var(--muted); font-size:14px; margin-bottom:16px;"><?php echo $canEdit ? 'Update your photo and personal information here.' : 'View your personal information below.'; ?></p>
+                                    <?php if ($canEdit): ?>
                                     <div style="display:flex; gap:10px; align-items:center;">
                                         <input type="file" name="avatar" accept="image/*" style="font-size:13px;">
                                         <?php if ($found): ?><span style="font-size:12px; color:var(--primary);">✓ Photo active</span><?php endif; ?>
                                     </div>
+                                    <?php elseif ($found): ?>
+                                    <span style="font-size:12px; color:var(--primary);">✓ Photo active</span>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                             <div class="form-section-title">Personal Information</div>
                             <div class="profile-form-grid">
+                                <?php $roAttr = $canEdit ? '' : 'readonly disabled'; $roBg = $canEdit ? '#fff' : '#f5f5f7'; ?>
                                 <label style="display:grid; gap:8px; font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase;">Full Name
-                                    <input type="text" name="name" value="<?php echo htmlspecialchars($userRow['name'] ?? ''); ?>" required style="width:100%; background:#fff; border:1px solid #ddd; border-radius:12px; padding:12px 16px; font-size:14px; color:var(--text);"></label>
+                                    <input type="text" name="name" value="<?php echo htmlspecialchars($userRow['name'] ?? ''); ?>" <?php echo $roAttr; ?> <?php echo $canEdit ? 'required' : ''; ?> style="width:100%; background:<?php echo $roBg; ?>; border:1px solid #ddd; border-radius:12px; padding:12px 16px; font-size:14px; color:var(--text); cursor:<?php echo $canEdit ? 'text' : 'not-allowed'; ?>;"></label>
                                 <label style="display:grid; gap:8px; font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase;">Email Address
-                                    <input type="email" name="email" value="<?php echo htmlspecialchars($userRow['email'] ?? ''); ?>" required style="width:100%; background:#fff; border:1px solid #ddd; border-radius:12px; padding:12px 16px; font-size:14px; color:var(--text);"></label>
+                                    <input type="email" name="email" value="<?php echo htmlspecialchars($userRow['email'] ?? ''); ?>" <?php echo $roAttr; ?> <?php echo $canEdit ? 'required' : ''; ?> style="width:100%; background:<?php echo $roBg; ?>; border:1px solid #ddd; border-radius:12px; padding:12px 16px; font-size:14px; color:var(--text); cursor:<?php echo $canEdit ? 'text' : 'not-allowed'; ?>;"></label>
                                 <label style="display:grid; gap:8px; font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase; grid-column:1/-1;">Physical Address
-                                    <input type="text" name="address" value="<?php echo htmlspecialchars($userRow['address'] ?? ''); ?>" style="width:100%; background:#fff; border:1px solid #ddd; border-radius:12px; padding:12px 16px; font-size:14px; color:var(--text);"></label>
+                                    <input type="text" name="address" value="<?php echo htmlspecialchars($userRow['address'] ?? ''); ?>" <?php echo $roAttr; ?> style="width:100%; background:<?php echo $roBg; ?>; border:1px solid #ddd; border-radius:12px; padding:12px 16px; font-size:14px; color:var(--text); cursor:<?php echo $canEdit ? 'text' : 'not-allowed'; ?>;"></label>
                             </div>
                             <?php if (($userRow['role'] ?? '') !== 'admin'): ?>
                             <div class="form-section-title" style="margin-top:40px;">Professional Details</div>
-                            <div class="profile-form-grid">
+                             <div class="profile-form-grid">
                                 <label style="display:grid; gap:8px; font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase;">Plate Number
-                                    <input type="text" name="plate_no" value="<?php echo htmlspecialchars($userRow['plate_no'] ?? ''); ?>" style="width:100%; background:#fff; border:1px solid #ddd; border-radius:12px; padding:12px 16px; font-size:14px; color:var(--text);"></label>
+                                    <input type="text" name="plate_no" value="<?php echo htmlspecialchars($userRow['plate_no'] ?? ''); ?>" <?php echo $roAttr; ?> style="width:100%; background:<?php echo $roBg; ?>; border:1px solid #ddd; border-radius:12px; padding:12px 16px; font-size:14px; color:var(--text); cursor:<?php echo $canEdit ? 'text' : 'not-allowed'; ?>;"></label>
                                 <label style="display:grid; gap:8px; font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase;">Reference Number
-                                    <input type="text" name="reference_no" value="<?php echo htmlspecialchars($userRow['reference_no'] ?? ''); ?>" style="width:100%; background:#fff; border:1px solid #ddd; border-radius:12px; padding:12px 16px; font-size:14px; color:var(--text);"></label>
+                                    <input type="text" name="reference_no" value="<?php echo htmlspecialchars($userRow['reference_no'] ?? ''); ?>" <?php echo $roAttr; ?> style="width:100%; background:<?php echo $roBg; ?>; border:1px solid #ddd; border-radius:12px; padding:12px 16px; font-size:14px; color:var(--text); cursor:<?php echo $canEdit ? 'text' : 'not-allowed'; ?>;"></label>
                             </div>
                             <?php endif; ?>
+                            <?php if ($canEdit): ?>
                             <div style="margin-top:48px; display:flex; justify-content:flex-end;">
                                 <button type="submit" class="btn-small" style="padding:16px 48px; font-size:16px; background:var(--gradient-primary); color:white; border-radius:16px; box-shadow:var(--shadow-glow);">Save Changes</button>
                             </div>
+                            <?php endif; ?>
                         </form>
                     </div>
                 </section>

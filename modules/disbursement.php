@@ -7,65 +7,8 @@ require __DIR__ . '/../includes/db.php';
 $user = current_user();
 
 
-$rows = [];$byMethod = [];
-// Optional one-time repair: backfill missing/empty method values in disbursements
-// Usage: visit disbursement.php?repair_methods=1 (admin only)
-if (isset($_GET['repair_methods']) && ($_GET['repair_methods'] === '1')) {
-	// Only allow admin to run the repair
-	if ((($user['role'] ?? '') === 'admin')) {
-		// Find disbursements with missing or empty method and try to infer from remarks
-		if ($res = $mysqli->query("SELECT disbursement_id, remarks FROM disbursements WHERE method IS NULL OR method = ''")) {
-			while ($row = $res->fetch_assoc()) {
-				$did = (int)$row['disbursement_id'];
-				$rm = trim((string)($row['remarks'] ?? ''));
-				$meth = null;
+$rows = []; $byMethod = [];
 
-				if (preg_match('/^AR #?([0-9]+)$/i', $rm, $m)) {
-					$id = (int)$m[1];
-					if ($r2 = $mysqli->prepare("SELECT COALESCE(method,'cash') AS method FROM accountsreceivable WHERE ar_id = ? LIMIT 1")) {
-						$r2->bind_param('i', $id);
-						$r2->execute();
-						$res2 = $r2->get_result();
-						if ($rrow = $res2->fetch_assoc()) {
-							$meth = strtolower(trim((string)$rrow['method']));
-						}
-						$r2->close();
-					}
-				} elseif (preg_match('/^AP #?([0-9]+)$/i', $rm, $m)) {
-					$id = (int)$m[1];
-					if ($r2 = $mysqli->prepare("SELECT COALESCE(method,'cash') AS method FROM accountspayable WHERE ap_id = ? LIMIT 1")) {
-						$r2->bind_param('i', $id);
-						$r2->execute();
-						$res2 = $r2->get_result();
-						if ($rrow = $res2->fetch_assoc()) {
-							$meth = strtolower(trim((string)$rrow['method']));
-						}
-						$r2->close();
-					}
-				}
-
-				if (!in_array($meth, ['cash','gcash','bank_transfer'], true)) {
-					$meth = 'cash';
-				}
-
-				if ($stmt = $mysqli->prepare("UPDATE disbursements SET method = ? WHERE disbursement_id = ?")) {
-					$stmt->bind_param('si', $meth, $did);
-					$stmt->execute();
-					$stmt->close();
-				}
-			}
-			$res->free();
-		}
-
-		// redirect after repair to avoid re-running on refresh
-		header('Location: disbursement.php');
-		exit;
-	} else {
-		http_response_code(403);
-		echo 'Forbidden';
-		exit;
-	}
-}
 if ($res = $mysqli->query("SELECT d.disbursement_id, d.user_id, u.name AS user_name, d.amount, d.method, d.disbursement_date, d.remarks FROM disbursements d LEFT JOIN users u ON u.user_id = d.user_id ORDER BY d.disbursement_date DESC, d.disbursement_id DESC LIMIT 100")) {
 	while ($row = $res->fetch_assoc()) {
 		// normalize method value for display

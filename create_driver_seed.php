@@ -1,4 +1,14 @@
 <?php
+// ── CLI-ONLY GUARD ──────────────────────────────────────────────────────────
+// This is a one-time seed script. It must only be run from the command line:
+//   php create_driver_seed.php
+// Accessing it via a web browser is blocked to prevent accidental data changes.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    echo 'Forbidden';
+    exit;
+}
+// ───────────────────────────────────────────────────────────────────────────
 require_once __DIR__ . '/includes/db.php';
 
 $name = 'John Driver';

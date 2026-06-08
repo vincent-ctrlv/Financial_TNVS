@@ -3,32 +3,75 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$error = null;
+// ── CSRF helper (inline, since this page may load without auth.php) ──
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+$csrf_token = $_SESSION['csrf_token'];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $entered = trim($_POST['otp'] ?? '');
-    $correct = $_SESSION['otp_code'] ?? null;
-    $expiry  = $_SESSION['otp_expiry'] ?? 0;
+$error  = null;
+$locked = false;
 
-    if (!$correct || time() > $expiry) {
-        $error = "OTP expired or not found. Please request a new one.";
-    } elseif ($entered === $correct) {
-        // Clear OTP from session — it is consumed
-        unset($_SESSION['otp_code'], $_SESSION['otp_expiry'], $_SESSION['otp_email']);
+// Brute-force: max 5 wrong attempts, then 10-minute lockout
+$OTP_MAX_ATTEMPTS    = 5;
+$OTP_LOCKOUT_SECONDS = 600;
 
-        // If the user is already fully logged in via send_otp.php (post-login 2FA),
-        // send them on to the dashboard.
-        // If this is being used as a standalone gate (pre-login), the caller is
-        // responsible for setting $_SESSION['user'] before redirecting here.
-        if (!empty($_SESSION['user'])) {
-            header('Location: ../dashboard.php');
-        } else {
-            // Not logged in — redirect to login so credentials are entered properly.
-            header('Location: login.php?otp_verified=1');
-        }
-        exit;
+// Check active lockout
+if (!empty($_SESSION['otp_locked_until']) && time() < $_SESSION['otp_locked_until']) {
+    $locked    = true;
+    $remaining = $_SESSION['otp_locked_until'] - time();
+    $error     = "Too many failed attempts. Please wait " . ceil($remaining / 60) . " minute(s) before trying again.";
+}
+
+if (!$locked && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    // CSRF verification
+    $submitted_csrf = $_POST['_csrf'] ?? '';
+    if (!hash_equals($csrf_token, $submitted_csrf)) {
+        $error = "Invalid request token. Please reload the page and try again.";
     } else {
-        $error = "Invalid OTP code. Please try again.";
+        if (!isset($_SESSION['otp_attempts'])) {
+            $_SESSION['otp_attempts'] = 0;
+        }
+
+        $entered = trim($_POST['otp'] ?? '');
+        $correct = $_SESSION['otp_code'] ?? null;
+        $expiry  = $_SESSION['otp_expiry'] ?? 0;
+
+        if (!$correct || time() > $expiry) {
+            // Expired or missing OTP — clear everything
+            unset($_SESSION['otp_code'], $_SESSION['otp_expiry'], $_SESSION['otp_email'], $_SESSION['otp_attempts']);
+            $error = "OTP expired or not found. Please request a new one.";
+        } elseif ($entered === $correct) {
+            // ✅ Correct — consume OTP, clear all counters
+            unset(
+                $_SESSION['otp_code'],
+                $_SESSION['otp_expiry'],
+                $_SESSION['otp_email'],
+                $_SESSION['otp_attempts'],
+                $_SESSION['otp_locked_until']
+            );
+
+            if (!empty($_SESSION['user'])) {
+                header('Location: ../dashboard.php');
+            } else {
+                header('Location: login.php?otp_verified=1');
+            }
+            exit;
+        } else {
+            // ❌ Wrong code — increment attempt counter
+            $_SESSION['otp_attempts']++;
+            $remaining_attempts = $OTP_MAX_ATTEMPTS - $_SESSION['otp_attempts'];
+
+            if ($_SESSION['otp_attempts'] >= $OTP_MAX_ATTEMPTS) {
+                // Lock out and invalidate OTP
+                $_SESSION['otp_locked_until'] = time() + $OTP_LOCKOUT_SECONDS;
+                unset($_SESSION['otp_code'], $_SESSION['otp_expiry'], $_SESSION['otp_email'], $_SESSION['otp_attempts']);
+                $locked = true;
+                $error  = "Too many failed attempts. Your OTP has been invalidated. Please request a new code after 10 minutes.";
+            } else {
+                $error = "Invalid OTP code. You have " . $remaining_attempts . " attempt(s) remaining.";
+            }
+        }
     }
 }
 ?>
@@ -92,6 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             transition: transform 0.2s, background 0.3s;
         }
         button:hover { background: #0773C5; transform: translateY(-2px); }
+        button:disabled { background: #b2bec3; cursor: not-allowed; transform: none; }
         .error { color: #D63031; margin-bottom: 20px; font-size: 14px; }
         .resend { margin-top: 20px; font-size: 14px; }
         .resend a { color: var(--primary); text-decoration: none; font-weight: bold; }
@@ -107,13 +151,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form method="POST">
+            <input type="hidden" name="_csrf" value="<?php echo htmlspecialchars($csrf_token); ?>">
             <input type="text" name="otp" maxlength="6" placeholder="000000"
-                   autocomplete="off" required autofocus inputmode="numeric">
-            <button type="submit">Verify Code</button>
+                   autocomplete="off" <?php echo $locked ? 'disabled' : 'required autofocus'; ?>
+                   inputmode="numeric">
+            <button type="submit" <?php echo $locked ? 'disabled' : ''; ?>>Verify Code</button>
         </form>
 
         <div class="resend">
-            Didn't receive code? <a href="send_otp.php">Resend</a>
+            <?php if ($locked): ?>
+                OTP invalidated. <a href="send_otp.php">Request a new code</a>
+            <?php else: ?>
+                Didn't receive code? <a href="send_otp.php">Resend</a>
+            <?php endif; ?>
         </div>
     </div>
 </body>

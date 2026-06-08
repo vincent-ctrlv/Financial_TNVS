@@ -158,7 +158,7 @@ if ($user['role'] === 'driver') {
     // AR/AP breakdowns (totals by status)
     function fetch_status_totals($mysqli, $table) {
         $totals = [];
-        $col = ($table === 'accountsreceivable') ? 'amount_due' : 'amount_due';
+        $col = 'amount_due';
         if ($res = $mysqli->query("SELECT status, COALESCE(SUM($col),0) AS total FROM $table GROUP BY status")) {
             while ($r = $res->fetch_assoc()) { $totals[strtolower((string)$r['status'])] = (float)$r['total']; }
             $res->free();

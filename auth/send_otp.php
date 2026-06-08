@@ -6,15 +6,13 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Resolve recipient email: prefer logged-in user's email, then fallback to a
-// POST/GET 'email' param (for pre-login OTP flow). Never use a hardcoded address.
+// Resolve recipient email: prefer logged-in user's email, then POST body only.
+// SECURITY: GET parameter removed — prevents unauthenticated OTP spam to arbitrary addresses.
 $email = '';
 if (is_logged_in()) {
     $email = current_user()['email'] ?? '';
 } elseif (!empty($_POST['email'])) {
     $email = trim($_POST['email']);
-} elseif (!empty($_GET['email'])) {
-    $email = trim($_GET['email']);
 }
 
 if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -25,9 +23,11 @@ if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
 $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 $expiry = time() + OTP_EXPIRY_SECONDS;
 
-$_SESSION['otp_code'] = $otp;
+$_SESSION['otp_code']   = $otp;
 $_SESSION['otp_expiry'] = $expiry;
-$_SESSION['otp_email'] = $email;
+$_SESSION['otp_email']  = $email;
+// Reset attempt counter so a fresh OTP starts clean
+unset($_SESSION['otp_attempts'], $_SESSION['otp_locked_until']);
 
 $subject = "Your SakaySaya OTP Code";
 $body = "

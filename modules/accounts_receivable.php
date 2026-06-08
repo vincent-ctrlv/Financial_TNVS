@@ -139,7 +139,7 @@ if ($res = $mysqli->query("SELECT ar.ar_id, ar.user_id, u.name AS user_name, ar.
                                 </td>
 							</tr>
 							<?php endforeach; ?>
-							<?php if (empty($ar)): ?><tr><td colspan="6">No accounts receivable found.</td></tr><?php endif; ?>
+							<?php if (empty($ar)): ?><tr><td colspan="7">No accounts receivable found.</td></tr><?php endif; ?>
 						</tbody>
 						<tfoot>
 							<tr>
