@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/env.php';
+
 // Simple reusable MySQL connection using mysqli
 // Update credentials as needed for your local environment
 $DB_HOST = getenv('DB_HOST') ?: '127.0.0.1';

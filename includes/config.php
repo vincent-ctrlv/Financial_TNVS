@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/env.php';
+
 // SMTP configuration for PHPMailer
 // ---------------------------------------------------------------
 // SECURITY: Never hardcode credentials in this file.
