@@ -65,11 +65,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 			overflow: hidden !important;
 			scrollbar-gutter: auto !important;
 		}
+		.back-link {
+			position: absolute;
+			top: 24px;
+			left: 24px;
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			color: rgba(255, 255, 255, 0.6);
+			text-decoration: none;
+			font-size: 13px;
+			font-weight: 600;
+			transition: all var(--transition-normal);
+			padding: 6px 12px;
+			border-radius: 10px;
+			background: rgba(255, 255, 255, 0.05);
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			z-index: 10;
+		}
+		.back-link:hover {
+			color: #ffffff;
+			background: rgba(255, 255, 255, 0.1);
+			border-color: rgba(255, 255, 255, 0.15);
+			transform: translateX(-2px);
+		}
 	</style>
 </head>
 <body>
 	<div id="login" class="login">
 		<div class="login-card">
+			<a href="../" class="back-link">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+					<line x1="19" y1="12" x2="5" y2="12"></line>
+					<polyline points="12 19 5 12 12 5"></polyline>
+				</svg>
+				Back to Home
+			</a>
 			<div class="logo">
 				<h1>SAKAYSAYA</h1>
 				<p>Finance System Login</p>

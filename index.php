@@ -17,22 +17,26 @@ $user = current_user();
     <link rel="stylesheet" href="assets/css/style.css?v=1.0.5">
     
     <style>
-        /* Landing Page Custom Styling */
+        /* Landing Page Custom Styling - Light Mode */
         :root {
             --font-display: 'Outfit', sans-serif;
             --font-sans: 'Inter', sans-serif;
-            --dark-blue: #0f172a;
-            --slate-800: #1e293b;
-            --slate-700: #334155;
+            --slate-50: #f8fafc;
+            --slate-100: #f1f5f9;
             --slate-200: #e2e8f0;
-            --emerald-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            --slate-600: #475569;
+            --slate-700: #334155;
+            --slate-800: #1e293b;
+            --slate-900: #0f172a;
+            --primary-green: #28a745;
+            --primary-glow: rgba(40, 167, 69, 0.15);
             --header-blur: saturate(180%) blur(20px);
         }
 
         body {
             font-family: var(--font-sans);
-            background: #090d16;
-            color: #ffffff;
+            background: var(--slate-50);
+            color: var(--slate-900);
             overflow-x: hidden;
             scroll-behavior: smooth;
         }
@@ -51,10 +55,10 @@ $user = current_user();
             left: 0;
             right: 0;
             height: 80px;
-            background: rgba(15, 23, 42, 0.65);
+            background: rgba(255, 255, 255, 0.7);
             backdrop-filter: var(--header-blur);
             -webkit-backdrop-filter: var(--header-blur);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom: 1px solid rgba(15, 23, 42, 0.06);
             z-index: 1000;
             display: flex;
             align-items: center;
@@ -64,9 +68,9 @@ $user = current_user();
         }
 
         .landing-header.scrolled {
-            background: rgba(15, 23, 42, 0.85);
+            background: rgba(255, 255, 255, 0.85);
             height: 70px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
         }
 
         .logo-container {
@@ -74,7 +78,7 @@ $user = current_user();
             align-items: center;
             gap: 10px;
             text-decoration: none;
-            color: #ffffff;
+            color: var(--slate-900);
         }
 
         .logo-text {
@@ -85,7 +89,7 @@ $user = current_user();
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             letter-spacing: -1.5px;
-            text-shadow: 0 0 30px rgba(40, 167, 69, 0.25);
+            text-shadow: 0 0 30px rgba(40, 167, 69, 0.15);
         }
 
         .nav-menu {
@@ -96,7 +100,7 @@ $user = current_user();
         }
 
         .nav-link {
-            color: var(--slate-200);
+            color: var(--slate-700);
             text-decoration: none;
             font-size: 14px;
             font-weight: 600;
@@ -131,20 +135,20 @@ $user = current_user();
             font-weight: 700;
             font-size: 14px;
             text-decoration: none;
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2);
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.15);
             transition: all var(--transition-normal);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .header-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
         }
 
         .header-btn-secondary {
-            background: rgba(255, 255, 255, 0.05);
-            color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(15, 23, 42, 0.04);
+            color: var(--slate-900);
+            border: 1px solid rgba(15, 23, 42, 0.08);
             padding: 10px 24px;
             border-radius: 12px;
             font-weight: 700;
@@ -154,7 +158,7 @@ $user = current_user();
         }
 
         .header-btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(15, 23, 42, 0.08);
             transform: translateY(-2px);
         }
 
@@ -166,7 +170,7 @@ $user = current_user();
             align-items: center;
             justify-content: center;
             padding: 120px 5% 80px;
-            background: linear-gradient(rgba(9, 13, 22, 0.8), rgba(9, 13, 22, 0.95)), 
+            background: linear-gradient(rgba(248, 250, 252, 0.85), rgba(248, 250, 252, 0.95)), 
                         url('assets/img/login_bg.png') no-repeat center center;
             background-size: cover;
             overflow: hidden;
@@ -179,7 +183,7 @@ $user = current_user();
             left: -10%;
             width: 50%;
             height: 70%;
-            background: radial-gradient(circle, rgba(40, 167, 69, 0.15) 0%, transparent 60%);
+            background: radial-gradient(circle, rgba(40, 167, 69, 0.08) 0%, transparent 60%);
             pointer-events: none;
             z-index: 1;
         }
@@ -191,7 +195,7 @@ $user = current_user();
             right: -10%;
             width: 50%;
             height: 70%;
-            background: radial-gradient(circle, rgba(32, 201, 151, 0.12) 0%, transparent 60%);
+            background: radial-gradient(circle, rgba(32, 201, 151, 0.06) 0%, transparent 60%);
             pointer-events: none;
             z-index: 1;
         }
@@ -218,9 +222,9 @@ $user = current_user();
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            background: rgba(40, 167, 69, 0.12);
-            border: 1px solid rgba(40, 167, 69, 0.3);
-            color: #34ce57;
+            background: rgba(40, 167, 69, 0.08);
+            border: 1px solid rgba(40, 167, 69, 0.2);
+            color: #1e7e34;
             padding: 8px 18px;
             border-radius: 50px;
             font-size: 13px;
@@ -241,7 +245,7 @@ $user = current_user();
         }
 
         @keyframes pulse {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.5); }
             70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(40, 167, 69, 0); }
             100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
         }
@@ -250,7 +254,7 @@ $user = current_user();
             font-size: 64px;
             line-height: 1.1;
             font-weight: 900;
-            color: #ffffff;
+            color: var(--slate-900);
             margin-bottom: 24px;
             letter-spacing: -2px;
         }
@@ -264,7 +268,7 @@ $user = current_user();
         .hero-description {
             font-size: 18px;
             line-height: 1.6;
-            color: var(--slate-200);
+            color: var(--slate-600);
             margin-bottom: 40px;
             max-width: 600px;
         }
@@ -283,7 +287,7 @@ $user = current_user();
             font-weight: 800;
             font-size: 16px;
             text-decoration: none;
-            box-shadow: 0 10px 25px rgba(40, 167, 69, 0.3);
+            box-shadow: 0 10px 25px rgba(40, 167, 69, 0.2);
             transition: all var(--transition-normal);
             border: 1px solid rgba(255, 255, 255, 0.1);
             display: inline-flex;
@@ -293,13 +297,13 @@ $user = current_user();
 
         .hero-btn-primary:hover {
             transform: translateY(-3px);
-            box-shadow: 0 15px 35px rgba(40, 167, 69, 0.5);
+            box-shadow: 0 15px 35px rgba(40, 167, 69, 0.4);
         }
 
         .hero-btn-secondary {
-            background: rgba(255, 255, 255, 0.05);
-            color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(15, 23, 42, 0.04);
+            color: var(--slate-900);
+            border: 1px solid rgba(15, 23, 42, 0.08);
             padding: 16px 36px;
             border-radius: 16px;
             font-weight: 800;
@@ -312,9 +316,9 @@ $user = current_user();
         }
 
         .hero-btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.10);
+            background: rgba(15, 23, 42, 0.08);
             transform: translateY(-3px);
-            border-color: rgba(255, 255, 255, 0.2);
+            border-color: rgba(15, 23, 42, 0.12);
         }
 
         /* Hero Graphic (Glass card mockup) */
@@ -329,12 +333,12 @@ $user = current_user();
         }
 
         .glass-mockup {
-            background: rgba(15, 23, 42, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(15, 23, 42, 0.08);
             border-radius: 24px;
             padding: 32px;
             backdrop-filter: blur(15px);
-            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 30px 60px rgba(15, 23, 42, 0.08);
             position: relative;
             z-index: 5;
         }
@@ -344,7 +348,7 @@ $user = current_user();
             justify-content: space-between;
             align-items: center;
             margin-bottom: 24px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            border-bottom: 1px solid rgba(15, 23, 42, 0.06);
             padding-bottom: 16px;
         }
 
@@ -366,14 +370,14 @@ $user = current_user();
         .mockup-title {
             font-size: 13px;
             font-weight: 700;
-            color: var(--slate-200);
+            color: var(--slate-800);
             letter-spacing: 1.5px;
             text-transform: uppercase;
         }
 
         .mockup-kpi {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(15, 23, 42, 0.04);
             border-radius: 16px;
             padding: 20px;
             margin-bottom: 16px;
@@ -381,7 +385,7 @@ $user = current_user();
 
         .mockup-kpi h4 {
             font-size: 11px;
-            color: #a0aec0;
+            color: var(--slate-600);
             text-transform: uppercase;
             letter-spacing: 1px;
             margin-bottom: 8px;
@@ -391,7 +395,7 @@ $user = current_user();
             font-size: 26px;
             font-weight: 900;
             color: #28a745;
-            text-shadow: 0 0 15px rgba(40, 167, 69, 0.3);
+            text-shadow: 0 0 15px rgba(40, 167, 69, 0.15);
         }
 
         .mockup-chart-row {
@@ -404,7 +408,7 @@ $user = current_user();
 
         .mockup-chart-bar {
             flex: 1;
-            background: rgba(40, 167, 69, 0.15);
+            background: rgba(40, 167, 69, 0.1);
             border-top: 2px solid #28a745;
             border-radius: 4px 4px 0 0;
             transition: height 1s ease-in-out;
@@ -418,10 +422,10 @@ $user = current_user();
         /* Stats Section */
         .stats-section {
             padding: 80px 5%;
-            background: #0b111e;
+            background: var(--slate-100);
             position: relative;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            border-top: 1px solid rgba(15, 23, 42, 0.05);
+            border-bottom: 1px solid rgba(15, 23, 42, 0.05);
         }
 
         .stats-grid {
@@ -449,7 +453,7 @@ $user = current_user();
 
         .stat-label {
             font-size: 15px;
-            color: var(--slate-200);
+            color: var(--slate-700);
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -484,7 +488,7 @@ $user = current_user();
         }
 
         .section-description {
-            color: var(--slate-200);
+            color: var(--slate-700);
             font-size: 16px;
             max-width: 600px;
             margin: 0 auto;
@@ -514,8 +518,8 @@ $user = current_user();
         }
 
         .role-card {
-            background: rgba(15, 23, 42, 0.45);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(15, 23, 42, 0.08);
             border-radius: 24px;
             padding: 40px;
             transition: all var(--transition-normal);
@@ -537,8 +541,8 @@ $user = current_user();
         .role-card:hover {
             transform: translateY(-5px);
             border-color: rgba(40, 167, 69, 0.3);
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
-            background: rgba(15, 23, 42, 0.65);
+            box-shadow: 0 15px 35px rgba(15, 23, 42, 0.06);
+            background: rgba(255, 255, 255, 0.95);
         }
 
         .role-card.driver-focus:hover::before {
@@ -575,7 +579,7 @@ $user = current_user();
         }
 
         .role-desc {
-            color: var(--slate-200);
+            color: var(--slate-700);
             font-size: 15px;
             line-height: 1.6;
             margin-bottom: 28px;
@@ -592,7 +596,7 @@ $user = current_user();
             align-items: center;
             gap: 12px;
             font-size: 14px;
-            color: var(--slate-200);
+            color: var(--slate-700);
             font-weight: 500;
         }
 
@@ -612,20 +616,20 @@ $user = current_user();
         .cta-bottom {
             padding: 100px 5%;
             text-align: center;
-            background: linear-gradient(to top, #090d16 0%, #0b111e 100%);
+            background: linear-gradient(to top, var(--slate-50) 0%, var(--slate-100) 100%);
             position: relative;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            border-top: 1px solid rgba(15, 23, 42, 0.05);
         }
 
         .cta-box {
             max-width: 900px;
             margin: 0 auto;
-            background: radial-gradient(circle at top right, rgba(40, 167, 69, 0.1), transparent), rgba(15, 23, 42, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: radial-gradient(circle at top right, rgba(40, 167, 69, 0.05), transparent), rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(15, 23, 42, 0.08);
             border-radius: 32px;
             padding: 60px 40px;
             backdrop-filter: blur(10px);
-            box-shadow: var(--shadow-lg);
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.04);
         }
 
         .cta-box h3 {
@@ -634,7 +638,7 @@ $user = current_user();
         }
 
         .cta-box p {
-            color: var(--slate-200);
+            color: var(--slate-700);
             font-size: 16px;
             max-width: 550px;
             margin: 0 auto 36px;
@@ -643,10 +647,10 @@ $user = current_user();
 
         /* Landing Footer */
         .landing-footer {
-            background: #070a11;
+            background: var(--slate-50);
             padding: 60px 5% 30px;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            color: var(--slate-200);
+            border-top: 1px solid rgba(15, 23, 42, 0.05);
+            color: var(--slate-700);
             font-size: 14px;
         }
 
@@ -683,7 +687,7 @@ $user = current_user();
         }
 
         .footer-link a {
-            color: var(--slate-200);
+            color: var(--slate-600);
             text-decoration: none;
             transition: color var(--transition-normal);
         }
@@ -695,14 +699,14 @@ $user = current_user();
         .footer-bottom {
             max-width: 1200px;
             margin: 0 auto;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            border-top: 1px solid rgba(15, 23, 42, 0.05);
             padding-top: 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
             gap: 15px;
-            color: #a0aec0;
+            color: var(--slate-600);
             font-size: 13px;
         }
     </style>
@@ -916,7 +920,7 @@ $user = current_user();
         <div class="footer-container">
             <div class="footer-branding">
                 <a href="#" class="footer-logo">SAKAYSAYA</a>
-                <p style="color: #a0aec0; max-width: 300px; line-height: 1.5; margin-top: 8px;">Premium financial ledger and automated collection suite for TNVS fleets.</p>
+                <p style="color: var(--slate-600); max-width: 300px; line-height: 1.5; margin-top: 8px;">Premium financial ledger and automated collection suite for TNVS fleets.</p>
             </div>
             
             <ul class="footer-links">
