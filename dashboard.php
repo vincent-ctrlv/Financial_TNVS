@@ -140,6 +140,67 @@ if ($user['role'] === 'driver') {
         }
         $stmt->close();
     }
+
+    // Driver Chart Data - Last 30 Days Performance
+    $driverDates = [];
+    $driverRevenues = [];
+    $driverExpenses = [];
+
+    $stmt = $mysqli->prepare("
+        SELECT 
+            transaction_date,
+            SUM(CASE WHEN type IN ('fare', 'incentive') THEN amount ELSE 0 END) as revenue,
+            SUM(CASE WHEN type IN ('fuel', 'lease', 'platform_fee') THEN amount ELSE 0 END) as expenses
+        FROM transactions 
+        WHERE user_id = ? AND transaction_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        GROUP BY transaction_date 
+        ORDER BY transaction_date ASC
+    ");
+    if ($stmt) {
+        $stmt->bind_param('i', $driverId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $driverDates[] = date('M d', strtotime($row['transaction_date']));
+            $driverRevenues[] = (float)$row['revenue'];
+            $driverExpenses[] = (float)$row['expenses'];
+        }
+        $stmt->close();
+    }
+
+    // Fallback if no records exist in last 30 days
+    if (empty($driverDates)) {
+        for ($i = 6; $i >= 0; $i--) {
+            $driverDates[] = date('M d', strtotime("-$i days"));
+            $driverRevenues[] = 0.0;
+            $driverExpenses[] = 0.0;
+        }
+    }
+
+    // Driver Share Breakdown
+    $driverShareLabels = [];
+    $driverShareValues = [];
+    $stmt = $mysqli->prepare("
+        SELECT type, SUM(amount) as total 
+        FROM transactions 
+        WHERE user_id = ?
+        GROUP BY type
+    ");
+    if ($stmt) {
+        $stmt->bind_param('i', $driverId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $driverShareLabels[] = ucfirst(str_replace('_', ' ', $row['type']));
+            $driverShareValues[] = (float)$row['total'];
+        }
+        $stmt->close();
+    }
+
+    if (empty($driverShareValues)) {
+        $driverShareLabels = ['Fares', 'Incentives', 'Fuel', 'Lease', 'Platform Commission'];
+        $driverShareValues = [0, 0, 0, 0, 0];
+    }
 } else {
     // Helper to fetch a single value safely
     function fetch_value($mysqli, $sql, $default = 0) {
@@ -209,6 +270,60 @@ if ($user['role'] === 'driver') {
 
     // Limit to 10 most recent
     $recent = array_slice($recent, 0, 10);
+
+    // Admin Chart Data - Overall Performance (Last 30 Days)
+    $adminDates = [];
+    $adminRevenues = [];
+    $adminExpenses = [];
+
+    $res = $mysqli->query("
+        SELECT 
+            transaction_date,
+            SUM(CASE WHEN type = 'fare' THEN amount ELSE 0 END) as revenue,
+            SUM(CASE WHEN type IN ('fuel', 'lease', 'platform_fee', 'incentive', 'payout') THEN amount ELSE 0 END) as expenses
+        FROM transactions 
+        WHERE transaction_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        GROUP BY transaction_date 
+        ORDER BY transaction_date ASC
+    ");
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $adminDates[] = date('M d', strtotime($row['transaction_date']));
+            $adminRevenues[] = (float)$row['revenue'];
+            $adminExpenses[] = (float)$row['expenses'];
+        }
+        $res->free();
+    }
+
+    // Fallback if no records exist
+    if (empty($adminDates)) {
+        for ($i = 6; $i >= 0; $i--) {
+            $adminDates[] = date('M d', strtotime("-$i days"));
+            $adminRevenues[] = 0.0;
+            $adminExpenses[] = 0.0;
+        }
+    }
+
+    // Admin Share Breakdown
+    $adminShareLabels = [];
+    $adminShareValues = [];
+    $res = $mysqli->query("
+        SELECT type, SUM(amount) as total 
+        FROM transactions 
+        GROUP BY type
+    ");
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $adminShareLabels[] = ucfirst(str_replace('_', ' ', $row['type']));
+            $adminShareValues[] = (float)$row['total'];
+        }
+        $res->free();
+    }
+
+    if (empty($adminShareValues)) {
+        $adminShareLabels = ['Fare', 'Platform Fee', 'Fuel', 'Lease', 'Incentive', 'Payout'];
+        $adminShareValues = [0, 0, 0, 0, 0, 0];
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -218,6 +333,7 @@ if ($user['role'] === 'driver') {
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>TNVS Dashboard</title>
 	<link rel="stylesheet" href="assets/css/style.css?v=1.0.5">
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 	<div id="app" class="app">
@@ -583,6 +699,18 @@ if ($user['role'] === 'driver') {
 					</div>
 				</div>
 
+				<!-- Interactive Charts -->
+				<div class="analytics" style="margin-bottom: 28px;">
+					<div class="chart-card">
+						<h4>My Performance (Last 30 Days)</h4>
+						<canvas id="driverPerformanceChart" style="max-height: 320px;"></canvas>
+					</div>
+					<div class="chart-card">
+						<h4>Income Breakdown</h4>
+						<canvas id="driverIncomeShareChart" style="max-height: 320px;"></canvas>
+					</div>
+				</div>
+
 				<!-- Statement Breakdown -->
 				<div class="driver-breakdown-card">
 					<h4 style="font-size:16px; font-weight:800; color:var(--text); margin:0 0 20px; display:flex; align-items:center; gap:10px;">
@@ -767,38 +895,19 @@ if ($user['role'] === 'driver') {
 						</div>
 					</div>
 
-					<div class="analytics">
-						<div class="chart-card" style="grid-column: 1 / -1;">
-							<h4>AR/AP Breakdown</h4>
-							<div class="breakdown">
-								<div class="breakdown-row">
-									<div class="label">AR Pending</div>
-									<?php $arPend=(float)($arTotalsByStatus['pending']??0)+(float)($arTotalsByStatus['overdue']??0); $arTotal=(float)array_sum($arTotalsByStatus); $w=$arTotal>0?min(100,max(5,round(($arPend/$arTotal)*100))):10; ?>
-									<div class="barline"><span style="--final-width: <?php echo $w; ?>%"></span></div>
-									<div class="value">₱<?php echo number_format($arPend,2); ?></div>
-								</div>
-								<div class="breakdown-row">
-									<div class="label">AR Paid</div>
-									<?php $v=(float)($arTotalsByStatus['paid']??0); $w=$arTotal>0?min(100,max(5,round(($v/$arTotal)*100))):10; ?>
-									<div class="barline"><span style="--final-width: <?php echo $w; ?>%"></span></div>
-									<div class="value">₱<?php echo number_format($v,2); ?></div>
-								</div>
-								<div class="breakdown-row">
-									<div class="label">AP Pending</div>
-									<?php $apTotal=(float)array_sum($apTotalsByStatus); $v=(float)($apTotalsByStatus['pending']??0); $w=$apTotal>0?min(100,max(5,round(($v/$apTotal)*100))):10; ?>
-									<div class="barline"><span style="--final-width: <?php echo $w; ?>%"></span></div>
-									<div class="value">₱<?php echo number_format($v,2); ?></div>
-								</div>
-								<div class="breakdown-row">
-									<div class="label">AP Paid</div>
-									<?php $v=(float)($apTotalsByStatus['paid']??0); $w=$apTotal>0?min(100,max(5,round(($v/$apTotal)*100))):10; ?>
-									<div class="barline"><span style="--final-width: <?php echo $w; ?>%"></span></div>
-									<div class="value">₱<?php echo number_format($v,2); ?></div>
-								</div>
-							</div>
+					<!-- Interactive Charts -->
+					<div class="analytics" style="margin-bottom: 32px;">
+						<div class="chart-card">
+							<h4>Financial Performance (Last 30 Days)</h4>
+							<canvas id="adminPerformanceChart" style="max-height: 320px;"></canvas>
+						</div>
+						<div class="chart-card">
+							<h4>Transaction Share</h4>
+							<canvas id="adminShareChart" style="max-height: 320px;"></canvas>
 						</div>
 					</div>
 
+					<!-- Detailed Ledger & Breakdowns -->
 					<div class="analytics">
 						<div class="chart-card">
 							<h4>Recent Transactions</h4>
@@ -828,12 +937,318 @@ if ($user['role'] === 'driver') {
 								</table>
 							</div>
 						</div>
+						<div class="chart-card">
+							<h4>AR/AP Status Breakdown</h4>
+							<div class="breakdown">
+								<div class="breakdown-row">
+									<div class="label">AR Pending</div>
+									<?php $arPend=(float)($arTotalsByStatus['pending']??0)+(float)($arTotalsByStatus['overdue']??0); $arTotal=(float)array_sum($arTotalsByStatus); $w=$arTotal>0?min(100,max(5,round(($arPend/$arTotal)*100))):10; ?>
+									<div class="barline"><span style="--final-width: <?php echo $w; ?>%"></span></div>
+									<div class="value">₱<?php echo number_format($arPend,2); ?></div>
+								</div>
+								<div class="breakdown-row">
+									<div class="label">AR Paid</div>
+									<?php $v=(float)($arTotalsByStatus['paid']??0); $w=$arTotal>0?min(100,max(5,round(($v/$arTotal)*100))):10; ?>
+									<div class="barline"><span style="--final-width: <?php echo $w; ?>%"></span></div>
+									<div class="value">₱<?php echo number_format($v,2); ?></div>
+								</div>
+								<div class="breakdown-row">
+									<div class="label">AP Pending</div>
+									<?php $apTotal=(float)array_sum($apTotalsByStatus); $v=(float)($apTotalsByStatus['pending']??0); $w=$apTotal>0?min(100,max(5,round(($v/$apTotal)*100))):10; ?>
+									<div class="barline"><span style="--final-width: <?php echo $w; ?>%"></span></div>
+									<div class="value">₱<?php echo number_format($v,2); ?></div>
+								</div>
+								<div class="breakdown-row">
+									<div class="label">AP Paid</div>
+									<?php $v=(float)($apTotalsByStatus['paid']??0); $w=$apTotal>0?min(100,max(5,round(($v/$apTotal)*100))):10; ?>
+									<div class="barline"><span style="--final-width: <?php echo $w; ?>%"></span></div>
+									<div class="value">₱<?php echo number_format($v,2); ?></div>
+								</div>
+							</div>
+						</div>
 					</div>
 				<?php endif; ?>
 			</section>
 		</main>
 	</div>
 	<script src="assets/js/app.js"></script>
+	<script>
+	document.addEventListener('DOMContentLoaded', function() {
+		// Common configurations & font settings
+		Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+		Chart.defaults.color = '#718096'; // Muted labels
+		
+		<?php if ($user['role'] === 'driver'): ?>
+		// --- DRIVER CHARTS ---
+		
+		// 1. Performance Line Chart (Earnings vs Expenses)
+		var driverCtx = document.getElementById('driverPerformanceChart');
+		if (driverCtx) {
+			new Chart(driverCtx.getContext('2d'), {
+				type: 'line',
+				data: {
+					labels: <?php echo json_encode($driverDates); ?>,
+					datasets: [
+						{
+							label: 'Earnings (Fare + Incentive)',
+							data: <?php echo json_encode($driverRevenues); ?>,
+							borderColor: '#28a745',
+							backgroundColor: 'rgba(40, 167, 69, 0.05)',
+							borderWidth: 3,
+							fill: true,
+							tension: 0.35,
+							pointRadius: 4,
+							pointBackgroundColor: '#28a745',
+							pointBorderColor: '#ffffff',
+							pointBorderWidth: 2,
+							pointHoverRadius: 6
+						},
+						{
+							label: 'Expenses (Lease, Fuel, Fees)',
+							data: <?php echo json_encode($driverExpenses); ?>,
+							borderColor: '#dc3545',
+							backgroundColor: 'rgba(220, 53, 69, 0.05)',
+							borderWidth: 3,
+							fill: true,
+							tension: 0.35,
+							pointRadius: 4,
+							pointBackgroundColor: '#dc3545',
+							pointBorderColor: '#ffffff',
+							pointBorderWidth: 2,
+							pointHoverRadius: 6
+						}
+					]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: {
+						legend: {
+							position: 'top',
+							labels: {
+								boxWidth: 12,
+								padding: 16,
+								font: { weight: '600', size: 12 }
+							}
+						},
+						tooltip: {
+							padding: 12,
+							cornerRadius: 8,
+							backgroundColor: 'rgba(15, 23, 42, 0.9)',
+							titleFont: { size: 13, weight: '700' },
+							bodyFont: { size: 13 },
+							callbacks: {
+								label: function(context) {
+									return ' ' + context.dataset.label + ': ₱' + Number(context.raw).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+								}
+							}
+						}
+					},
+					scales: {
+						y: {
+							grid: { color: 'rgba(0, 0, 0, 0.04)' },
+							ticks: {
+								callback: function(value) { return '₱' + value; },
+								font: { weight: '600' }
+							}
+						},
+						x: {
+							grid: { display: false }
+						}
+					}
+				}
+			});
+		}
+
+		// 2. Share Breakdown Doughnut Chart
+		var driverShareCtx = document.getElementById('driverIncomeShareChart');
+		if (driverShareCtx) {
+			new Chart(driverShareCtx.getContext('2d'), {
+				type: 'doughnut',
+				data: {
+					labels: <?php echo json_encode($driverShareLabels); ?>,
+					datasets: [{
+						data: <?php echo json_encode($driverShareValues); ?>,
+						backgroundColor: [
+							'#28a745', // Fare
+							'#20c997', // Incentive
+							'#dc3545', // Fuel
+							'#ffc107', // Lease
+							'#fd7e14'  // Platform Fee
+						],
+						borderWidth: 2,
+						borderColor: '#ffffff',
+						hoverOffset: 6
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: {
+						legend: {
+							position: 'bottom',
+							labels: {
+								boxWidth: 12,
+								padding: 12,
+								font: { weight: '600', size: 11 }
+							}
+						},
+						tooltip: {
+							padding: 12,
+							cornerRadius: 8,
+							backgroundColor: 'rgba(15, 23, 42, 0.9)',
+							callbacks: {
+								label: function(context) {
+									var total = context.dataset.data.reduce((a, b) => a + b, 0);
+									var val = context.raw;
+									var pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+									return ' ' + context.label + ': ₱' + Number(val).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' (' + pct + '%)';
+								}
+							}
+						}
+					},
+					cutout: '65%'
+				}
+			});
+		}
+		
+		<?php else: ?>
+		// --- ADMIN CHARTS ---
+		
+		// 1. Performance Line Chart (Revenue vs Expenses)
+		var adminCtx = document.getElementById('adminPerformanceChart');
+		if (adminCtx) {
+			new Chart(adminCtx.getContext('2d'), {
+				type: 'line',
+				data: {
+					labels: <?php echo json_encode($adminDates); ?>,
+					datasets: [
+						{
+							label: 'Total Revenue (Fares)',
+							data: <?php echo json_encode($adminRevenues); ?>,
+							borderColor: '#28a745',
+							backgroundColor: 'rgba(40, 167, 69, 0.05)',
+							borderWidth: 3,
+							fill: true,
+							tension: 0.35,
+							pointRadius: 4,
+							pointBackgroundColor: '#28a745',
+							pointBorderColor: '#ffffff',
+							pointBorderWidth: 2,
+							pointHoverRadius: 6
+						},
+						{
+							label: 'Total Expenses',
+							data: <?php echo json_encode($adminExpenses); ?>,
+							borderColor: '#dc3545',
+							backgroundColor: 'rgba(220, 53, 69, 0.05)',
+							borderWidth: 3,
+							fill: true,
+							tension: 0.35,
+							pointRadius: 4,
+							pointBackgroundColor: '#dc3545',
+							pointBorderColor: '#ffffff',
+							pointBorderWidth: 2,
+							pointHoverRadius: 6
+						}
+					]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: {
+						legend: {
+							position: 'top',
+							labels: {
+								boxWidth: 12,
+								padding: 16,
+								font: { weight: '600', size: 12 }
+							}
+						},
+						tooltip: {
+							padding: 12,
+							cornerRadius: 8,
+							backgroundColor: 'rgba(15, 23, 42, 0.9)',
+							titleFont: { size: 13, weight: '700' },
+							bodyFont: { size: 13 },
+							callbacks: {
+								label: function(context) {
+									return ' ' + context.dataset.label + ': ₱' + Number(context.raw).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+								}
+							}
+						}
+					},
+					scales: {
+						y: {
+							grid: { color: 'rgba(0, 0, 0, 0.04)' },
+							ticks: {
+								callback: function(value) { return '₱' + value; },
+								font: { weight: '600' }
+							}
+						},
+						x: {
+							grid: { display: false }
+						}
+					}
+				}
+			});
+		}
+
+		// 2. Share Breakdown Doughnut Chart
+		var adminShareCtx = document.getElementById('adminShareChart');
+		if (adminShareCtx) {
+			new Chart(adminShareCtx.getContext('2d'), {
+				type: 'doughnut',
+				data: {
+					labels: <?php echo json_encode($adminShareLabels); ?>,
+					datasets: [{
+						data: <?php echo json_encode($adminShareValues); ?>,
+						backgroundColor: [
+							'#28a745', // Fare (Green)
+							'#fd7e14', // Platform Fee (Orange)
+							'#dc3545', // Fuel (Red)
+							'#ffc107', // Lease (Yellow)
+							'#20c997', // Incentive (Teal)
+							'#17a2b8'  // Payout (Cyan)
+						],
+						borderWidth: 2,
+						borderColor: '#ffffff',
+						hoverOffset: 6
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: {
+						legend: {
+							position: 'bottom',
+							labels: {
+								boxWidth: 12,
+								padding: 12,
+								font: { weight: '600', size: 11 }
+							}
+						},
+						tooltip: {
+							padding: 12,
+							cornerRadius: 8,
+							backgroundColor: 'rgba(15, 23, 42, 0.9)',
+							callbacks: {
+								label: function(context) {
+									var total = context.dataset.data.reduce((a, b) => a + b, 0);
+									var val = context.raw;
+									var pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+									return ' ' + context.label + ': ₱' + Number(val).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' (' + pct + '%)';
+								}
+							}
+						}
+					},
+					cutout: '65%'
+				}
+			});
+		}
+		<?php endif; ?>
+	});
+	</script>
 </body>
 </html>
 
