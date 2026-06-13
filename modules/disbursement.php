@@ -6,24 +6,40 @@ require_access('disbursement');
 require __DIR__ . '/../includes/db.php';
 $user = current_user();
 
+$rows = [];
+$byMethod = [];
 
-$rows = []; $byMethod = [];
+$queryDisbursements = "SELECT d.disbursement_id, d.user_id, u.name AS user_name, d.amount, d.method, d.disbursement_date, d.remarks 
+                       FROM disbursements d 
+                       LEFT JOIN users u ON u.user_id = d.user_id 
+                       ORDER BY d.disbursement_date DESC, d.disbursement_id DESC 
+                       LIMIT 100";
 
-if ($res = $mysqli->query("SELECT d.disbursement_id, d.user_id, u.name AS user_name, d.amount, d.method, d.disbursement_date, d.remarks FROM disbursements d LEFT JOIN users u ON u.user_id = d.user_id ORDER BY d.disbursement_date DESC, d.disbursement_id DESC LIMIT 100")) {
-	while ($row = $res->fetch_assoc()) {
-		// normalize method value for display
-		$method = strtolower((string)($row['method'] ?? ''));
-		if (!in_array($method, ['cash','gcash','bank_transfer'], true) || $method === '') {
-			$method = 'cash';
-		}
-		$row['method'] = $method;
-		$rows[] = $row;
-		// accumulate totals by inferred method
-		if (!isset($byMethod[$method])) $byMethod[$method] = 0.0;
-		$byMethod[$method] += (float)$row['amount'];
-	}
-	$res->free();
+if ($stmt = $mysqli->prepare($queryDisbursements)) {
+    if ($stmt->execute()) {
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            // normalize method value for display
+            $method = strtolower((string)($row['method'] ?? ''));
+            if (!in_array($method, ['cash', 'gcash', 'bank_transfer'], true) || $method === '') {
+                $method = 'cash';
+            }
+            $row['method'] = $method;
+            $rows[] = $row;
+            // accumulate totals by inferred method
+            if (!isset($byMethod[$method])) {
+                $byMethod[$method] = 0.0;
+            }
+            $byMethod[$method] += (float)$row['amount'];
+        }
+    } else {
+        error_log("Failed to execute disbursements query: " . $stmt->error);
+    }
+    $stmt->close();
+} else {
+    error_log("Failed to prepare disbursements query: " . $mysqli->error);
 }
+
 // Determine max method total for proportional bar widths
 $_maxDisbMethod = max(array_values($byMethod) ?: [1]);
 ?>

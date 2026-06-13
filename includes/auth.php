@@ -211,4 +211,76 @@ function log_audit_action(mysqli $mysqli, string $action, string $targetTable): 
     }
     return false;
 }
+
+/**
+ * Helper to mirror a paid Accounts Payable (AP) record into Disbursements.
+ *
+ * @param mysqli $mysqli
+ * @param int $apId
+ * @return bool True if successfully mirrored or already mirrored, false on failure.
+ */
+function mirror_ap_to_disbursement(mysqli $mysqli, int $apId): bool {
+    if ($apId <= 0) {
+        return false;
+    }
+    $stmt = $mysqli->prepare("SELECT user_id, amount_due, COALESCE(method, 'cash') AS method FROM accountspayable WHERE ap_id = ? LIMIT 1");
+    if ($stmt) {
+        $stmt->bind_param('i', $apId);
+        if ($stmt->execute()) {
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            if ($row) {
+                return insert_disbursement_for(
+                    $mysqli,
+                    (int)$row['user_id'],
+                    (float)$row['amount_due'],
+                    (string)$row['method'],
+                    'AP #' . $apId
+                );
+            }
+        } else {
+            error_log("Failed to execute AP fetch for mirroring: " . $stmt->error);
+            $stmt->close();
+        }
+    } else {
+        error_log("Failed to prepare AP fetch for mirroring: " . $mysqli->error);
+    }
+    return false;
+}
+
+/**
+ * Helper to mirror a paid Accounts Receivable (AR) record into Disbursements.
+ *
+ * @param mysqli $mysqli
+ * @param int $arId
+ * @return bool True if successfully mirrored or already mirrored, false on failure.
+ */
+function mirror_ar_to_disbursement(mysqli $mysqli, int $arId): bool {
+    if ($arId <= 0) {
+        return false;
+    }
+    $stmt = $mysqli->prepare("SELECT user_id, amount_due, COALESCE(method, 'cash') AS method FROM accountsreceivable WHERE ar_id = ? LIMIT 1");
+    if ($stmt) {
+        $stmt->bind_param('i', $arId);
+        if ($stmt->execute()) {
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            if ($row) {
+                return insert_disbursement_for(
+                    $mysqli,
+                    (int)$row['user_id'],
+                    (float)$row['amount_due'],
+                    (string)$row['method'],
+                    'AR #' . $arId
+                );
+            }
+        } else {
+            error_log("Failed to execute AR fetch for mirroring: " . $stmt->error);
+            $stmt->close();
+        }
+    } else {
+        error_log("Failed to prepare AR fetch for mirroring: " . $mysqli->error);
+    }
+    return false;
+}
 ?>

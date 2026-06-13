@@ -6,16 +6,42 @@ require_once __DIR__ . '/../includes/db.php';
 $user = current_user();
 
 $rows = [];
-if ($res = $mysqli->query("SELECT transaction_id, type, amount, description, transaction_date FROM transactions ORDER BY transaction_date DESC, transaction_id DESC LIMIT 100")) {
-	while ($row = $res->fetch_assoc()) { $rows[] = $row; }
-	$res->free();
+$queryTransactions = "SELECT transaction_id, type, amount, description, transaction_date 
+                      FROM transactions 
+                      ORDER BY transaction_date DESC, transaction_id DESC 
+                      LIMIT 100";
+
+if ($stmt = $mysqli->prepare($queryTransactions)) {
+    if ($stmt->execute()) {
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $rows[] = $row;
+        }
+    } else {
+        error_log("Failed to execute ledger transactions query: " . $stmt->error);
+    }
+    $stmt->close();
+} else {
+    error_log("Failed to prepare ledger transactions query: " . $mysqli->error);
 }
 
 $totals = [];
-if ($res = $mysqli->query("SELECT type, COALESCE(SUM(amount),0) AS total FROM transactions GROUP BY type")) {
-	while ($r = $res->fetch_assoc()) { $totals[$r['type']] = (float)$r['total']; }
-	$res->free();
+$queryTotals = "SELECT type, COALESCE(SUM(amount),0) AS total FROM transactions GROUP BY type";
+
+if ($stmt = $mysqli->prepare($queryTotals)) {
+    if ($stmt->execute()) {
+        $res = $stmt->get_result();
+        while ($r = $res->fetch_assoc()) {
+            $totals[$r['type']] = (float)$r['total'];
+        }
+    } else {
+        error_log("Failed to execute ledger totals query: " . $stmt->error);
+    }
+    $stmt->close();
+} else {
+    error_log("Failed to prepare ledger totals query: " . $mysqli->error);
 }
+
 // Determine max value for proportional bar widths
 $_maxLedger = max(array_values($totals) ?: [1]);
 ?>

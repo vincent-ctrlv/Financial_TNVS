@@ -5,56 +5,66 @@ require_access('accounts_payable');
 require __DIR__ . '/../includes/db.php';
 $user = current_user();
 
-
-// Handle mark-paid (admin and finance_staff)
 // Auto-update overdue for AP as well (mirror AR)
-$mysqli->query("UPDATE accountspayable SET status='overdue' WHERE status='pending' AND due_date < CURDATE()");
+if (!$mysqli->query("UPDATE accountspayable SET status='overdue' WHERE status='pending' AND due_date < CURDATE()")) {
+    error_log("Failed to auto-update overdue accounts payable: " . $mysqli->error);
+}
 
-if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && in_array(($user['role'] ?? ''), ['admin','finance_staff'], true)) {
+// Handle POST actions (admin and finance_staff)
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && in_array(($user['role'] ?? ''), ['admin', 'finance_staff'], true)) {
     verify_csrf_or_die();
     $action = $_POST['action'] ?? '';
+    
     if ($action === 'mark_paid') {
         $apId = (int)($_POST['ap_id'] ?? 0);
         if ($apId > 0) {
             // Update AP status
             $stmt = $mysqli->prepare("UPDATE accountspayable SET status='paid' WHERE ap_id=?");
-            if ($stmt) { $stmt->bind_param('i', $apId); $stmt->execute(); $stmt->close(); }
+            if ($stmt) {
+                $stmt->bind_param('i', $apId);
+                if (!$stmt->execute()) {
+                    error_log("Failed to mark AP #$apId as paid: " . $stmt->error);
+                }
+                $stmt->close();
+            } else {
+                error_log("Prepare statement failed for AP status update to paid: " . $mysqli->error);
+            }
 
             // Mirror paid record into disbursements
-            if ($stmt2 = $mysqli->prepare("SELECT user_id, amount_due, COALESCE(method,'cash') AS method FROM accountspayable WHERE ap_id=? LIMIT 1")) {
-                $stmt2->bind_param('i', $apId);
-                $stmt2->execute();
-                $row = $stmt2->get_result()->fetch_assoc();
-                $stmt2->close();
-                if ($row) {
-                    insert_disbursement_for($mysqli, (int)$row['user_id'], (float)$row['amount_due'], (string)$row['method'], 'AP #'.$apId);
-                }
-            }
+            mirror_ap_to_disbursement($mysqli, $apId);
             log_audit_action($mysqli, 'mark_paid', 'accountspayable');
         }
     } elseif ($action === 'mark_pending') {
         $apId = (int)($_POST['ap_id'] ?? 0);
         if ($apId > 0) {
             $stmt = $mysqli->prepare("UPDATE accountspayable SET status='pending' WHERE ap_id=?");
-            if ($stmt) { $stmt->bind_param('i', $apId); $stmt->execute(); $stmt->close(); }
+            if ($stmt) {
+                $stmt->bind_param('i', $apId);
+                if (!$stmt->execute()) {
+                    error_log("Failed to mark AP #$apId as pending: " . $stmt->error);
+                }
+                $stmt->close();
+            } else {
+                error_log("Prepare statement failed for AP status update to pending: " . $mysqli->error);
+            }
             log_audit_action($mysqli, 'mark_pending', 'accountspayable');
         }
     } elseif ($action === 'update_status') {
         $apId = (int)($_POST['ap_id'] ?? 0);
         $newStatus = strtolower(trim($_POST['status'] ?? ''));
-        if ($apId > 0 && in_array($newStatus, ['pending','paid','overdue'], true)) {
+        if ($apId > 0 && in_array($newStatus, ['pending', 'paid', 'overdue'], true)) {
             $stmt = $mysqli->prepare("UPDATE accountspayable SET status=? WHERE ap_id=?");
-            if ($stmt) { $stmt->bind_param('si', $newStatus, $apId); $stmt->execute(); $stmt->close(); }
-            if ($newStatus === 'paid') {
-                if ($stmt2 = $mysqli->prepare("SELECT user_id, amount_due, COALESCE(method,'cash') AS method FROM accountspayable WHERE ap_id=? LIMIT 1")) {
-                    $stmt2->bind_param('i', $apId);
-                    $stmt2->execute();
-                    $row = $stmt2->get_result()->fetch_assoc();
-                    $stmt2->close();
-                    if ($row) {
-                        insert_disbursement_for($mysqli, (int)$row['user_id'], (float)$row['amount_due'], (string)$row['method'], 'AP #'.$apId);
-                    }
+            if ($stmt) {
+                $stmt->bind_param('si', $newStatus, $apId);
+                if (!$stmt->execute()) {
+                    error_log("Failed to update status of AP #$apId to $newStatus: " . $stmt->error);
                 }
+                $stmt->close();
+            } else {
+                error_log("Prepare statement failed for AP status update to $newStatus: " . $mysqli->error);
+            }
+            if ($newStatus === 'paid') {
+                mirror_ap_to_disbursement($mysqli, $apId);
             }
             log_audit_action($mysqli, 'update_status_' . $newStatus, 'accountspayable');
         }
@@ -64,20 +74,34 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && in_array(($user['role'] ?? 
     exit;
 }
 
+$ap = [];
+$apTotal = 0;
+$apPaidTotal = 0;
+$editApId = (int)($_GET['edit_ap_id'] ?? 0);
 
+$query = "SELECT ap.ap_id, ap.user_id, u.name AS user_name, ap.amount_due, ap.due_date, ap.method, ap.status 
+          FROM accountspayable ap 
+          LEFT JOIN users u ON u.user_id = ap.user_id 
+          ORDER BY ap.due_date DESC, ap.ap_id DESC 
+          LIMIT 100";
 
-
-$ap = [];$apTotal = 0;$apPaidTotal = 0; $editApId = (int)($_GET['edit_ap_id'] ?? 0);
-if ($res = $mysqli->query("SELECT ap.ap_id, ap.user_id, u.name AS user_name, ap.amount_due, ap.due_date, ap.method, ap.status FROM accountspayable ap LEFT JOIN users u ON u.user_id = ap.user_id ORDER BY ap.due_date DESC, ap.ap_id DESC LIMIT 100")) {
-	while ($row = $res->fetch_assoc()) {
-		$ap[] = $row;
-		if (($row['status'] ?? '') === 'paid') {
-			$apPaidTotal += (float)$row['amount_due'];
-		} else {
-			$apTotal += (float)$row['amount_due'];
-		}
-	}
-	$res->free();
+if ($stmt = $mysqli->prepare($query)) {
+    if ($stmt->execute()) {
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $ap[] = $row;
+            if (($row['status'] ?? '') === 'paid') {
+                $apPaidTotal += (float)$row['amount_due'];
+            } else {
+                $apTotal += (float)$row['amount_due'];
+            }
+        }
+    } else {
+        error_log("Failed to execute AP fetch query: " . $stmt->error);
+    }
+    $stmt->close();
+} else {
+    error_log("Prepare statement failed for AP fetch: " . $mysqli->error);
 }
 ?>
 <!DOCTYPE html>

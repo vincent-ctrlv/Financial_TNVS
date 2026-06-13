@@ -6,56 +6,64 @@ require __DIR__ . '/../includes/db.php';
 $user = current_user();
 
 // Auto-update overdue statuses
-$mysqli->query("UPDATE accountsreceivable SET status='overdue' WHERE status='pending' AND due_date < CURDATE()");
+if (!$mysqli->query("UPDATE accountsreceivable SET status='overdue' WHERE status='pending' AND due_date < CURDATE()")) {
+    error_log("Failed to auto-update overdue accounts receivable: " . $mysqli->error);
+}
 
-
-
-
-// Handle create, update, delete and mark-paid actions (admin and finance_staff)
-if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && in_array(($user['role'] ?? ''), ['admin','finance_staff'], true)) {
+// Handle POST actions (admin and finance_staff)
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && in_array(($user['role'] ?? ''), ['admin', 'finance_staff'], true)) {
     verify_csrf_or_die();
     $action = $_POST['action'] ?? '';
+    
     if ($action === 'mark_paid') {
         $arId = (int)($_POST['ar_id'] ?? 0);
         if ($arId > 0) {
             $stmt = $mysqli->prepare("UPDATE accountsreceivable SET status='paid' WHERE ar_id=?");
-            if ($stmt) { $stmt->bind_param('i', $arId); $stmt->execute(); $stmt->close(); }
+            if ($stmt) {
+                $stmt->bind_param('i', $arId);
+                if (!$stmt->execute()) {
+                    error_log("Failed to mark AR #$arId as paid: " . $stmt->error);
+                }
+                $stmt->close();
+            } else {
+                error_log("Prepare statement failed for AR status update to paid: " . $mysqli->error);
+            }
 
             // Mirror paid record into disbursements
-            if ($stmt2 = $mysqli->prepare("SELECT user_id, amount_due, COALESCE(method,'cash') AS method FROM accountsreceivable WHERE ar_id=? LIMIT 1")) {
-                $stmt2->bind_param('i', $arId);
-                $stmt2->execute();
-                $row = $stmt2->get_result()->fetch_assoc();
-                $stmt2->close();
-                if ($row) {
-                    insert_disbursement_for($mysqli, (int)$row['user_id'], (float)$row['amount_due'], (string)$row['method'], 'AR #'.$arId);
-                }
-            }
+            mirror_ar_to_disbursement($mysqli, $arId);
             log_audit_action($mysqli, 'mark_paid', 'accountsreceivable');
         }
     } elseif ($action === 'mark_pending') {
         $arId = (int)($_POST['ar_id'] ?? 0);
         if ($arId > 0) {
             $stmt = $mysqli->prepare("UPDATE accountsreceivable SET status='pending' WHERE ar_id=?");
-            if ($stmt) { $stmt->bind_param('i', $arId); $stmt->execute(); $stmt->close(); }
+            if ($stmt) {
+                $stmt->bind_param('i', $arId);
+                if (!$stmt->execute()) {
+                    error_log("Failed to mark AR #$arId as pending: " . $stmt->error);
+                }
+                $stmt->close();
+            } else {
+                error_log("Prepare statement failed for AR status update to pending: " . $mysqli->error);
+            }
             log_audit_action($mysqli, 'mark_pending', 'accountsreceivable');
         }
     } elseif ($action === 'update_status') {
         $arId = (int)($_POST['ar_id'] ?? 0);
         $newStatus = strtolower(trim($_POST['status'] ?? ''));
-        if ($arId > 0 && in_array($newStatus, ['pending','paid','overdue'], true)) {
+        if ($arId > 0 && in_array($newStatus, ['pending', 'paid', 'overdue'], true)) {
             $stmt = $mysqli->prepare("UPDATE accountsreceivable SET status=? WHERE ar_id=?");
-            if ($stmt) { $stmt->bind_param('si', $newStatus, $arId); $stmt->execute(); $stmt->close(); }
-            if ($newStatus === 'paid') {
-                if ($stmt2 = $mysqli->prepare("SELECT user_id, amount_due, COALESCE(method,'cash') AS method FROM accountsreceivable WHERE ar_id=? LIMIT 1")) {
-                    $stmt2->bind_param('i', $arId);
-                    $stmt2->execute();
-                    $row = $stmt2->get_result()->fetch_assoc();
-                    $stmt2->close();
-                    if ($row) {
-                        insert_disbursement_for($mysqli, (int)$row['user_id'], (float)$row['amount_due'], (string)$row['method'], 'AR #'.$arId);
-                    }
+            if ($stmt) {
+                $stmt->bind_param('si', $newStatus, $arId);
+                if (!$stmt->execute()) {
+                    error_log("Failed to update status of AR #$arId to $newStatus: " . $stmt->error);
                 }
+                $stmt->close();
+            } else {
+                error_log("Prepare statement failed for AR status update to $newStatus: " . $mysqli->error);
+            }
+            if ($newStatus === 'paid') {
+                mirror_ar_to_disbursement($mysqli, $arId);
             }
             log_audit_action($mysqli, 'update_status_' . $newStatus, 'accountsreceivable');
         }
@@ -65,18 +73,34 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && in_array(($user['role'] ?? 
     exit;
 }
 
+$ar = [];
+$arTotal = 0;
+$arPaidTotal = 0;
+$editArId = (int)($_GET['edit_ar_id'] ?? 0);
 
-$ar = [];$arTotal = 0;$arPaidTotal = 0; $editArId = (int)($_GET['edit_ar_id'] ?? 0);
-if ($res = $mysqli->query("SELECT ar.ar_id, ar.user_id, u.name AS user_name, ar.amount_due, ar.due_date, ar.method, ar.status FROM accountsreceivable ar LEFT JOIN users u ON u.user_id = ar.user_id ORDER BY ar.due_date DESC, ar.ar_id DESC LIMIT 100")) {
-	while ($row = $res->fetch_assoc()) {
-		$ar[] = $row;
-		if (($row['status'] ?? '') === 'paid') {
-			$arPaidTotal += (float)$row['amount_due'];
-		} else {
-			$arTotal += (float)$row['amount_due'];
-		}
-	}
-	$res->free();
+$query = "SELECT ar.ar_id, ar.user_id, u.name AS user_name, ar.amount_due, ar.due_date, ar.method, ar.status 
+          FROM accountsreceivable ar 
+          LEFT JOIN users u ON u.user_id = ar.user_id 
+          ORDER BY ar.due_date DESC, ar.ar_id DESC 
+          LIMIT 100";
+
+if ($stmt = $mysqli->prepare($query)) {
+    if ($stmt->execute()) {
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $ar[] = $row;
+            if (($row['status'] ?? '') === 'paid') {
+                $arPaidTotal += (float)$row['amount_due'];
+            } else {
+                $arTotal += (float)$row['amount_due'];
+            }
+        }
+    } else {
+        error_log("Failed to execute AR fetch query: " . $stmt->error);
+    }
+    $stmt->close();
+} else {
+    error_log("Prepare statement failed for AR fetch: " . $mysqli->error);
 }
 ?>
 <!DOCTYPE html>
