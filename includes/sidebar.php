@@ -53,6 +53,22 @@ $_webRoot = rtrim($_webRoot, '/\\');
     </div>
     <?php endif; ?>
 
+    <div class="group">
+        <h4>My Account</h4>
+        <?php if (can_access('profile')): ?>
+        <a class="nav <?php echo is_active('profile.php'); ?>" href="<?php echo $_webRoot; ?>/user/profile.php"><span>My Profile</span></a>
+        <?php endif; ?>
+        <?php if (can_access('change_password')): ?>
+        <a class="nav <?php echo is_active('change_password.php'); ?>" href="<?php echo $_webRoot; ?>/user/change_password.php"><span>Change Password</span></a>
+        <?php endif; ?>
+        <?php if (can_access('activity')): ?>
+        <a class="nav <?php echo is_active('activity.php'); ?>" href="<?php echo $_webRoot; ?>/user/activity.php"><span>My Activity</span></a>
+        <?php endif; ?>
+        <?php if (can_access('my_finances')): ?>
+        <a class="nav <?php echo is_active('my_finances.php'); ?>" href="<?php echo $_webRoot; ?>/user/my_finances.php"><span>My Finances</span></a>
+        <?php endif; ?>
+    </div>
+
     <!-- Sidebar profile at bottom -->
     <div class="sidebar-footer">
         <a href="<?php echo $_webRoot; ?>/user/profile.php" class="sidebar-profile">

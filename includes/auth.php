@@ -77,14 +77,17 @@ function role_permissions(): array {
     return [
         'admin' => [
             'dashboard','ledger','accounts_receivable','accounts_payable',
-            'collection','budget','disbursement','bank_recon','users','profile'
+            'collection','budget','disbursement','bank_recon','users','profile',
+            'change_password','activity','my_finances'
         ],
         'finance_staff' => [
             'dashboard','ledger','accounts_receivable','accounts_payable',
-            'collection','budget','disbursement','profile'
+            'collection','budget','disbursement','profile',
+            'change_password','activity','my_finances'
         ],
         'driver' => [
-            'dashboard','collection','profile'
+            'dashboard','collection','profile',
+            'change_password','activity','my_finances'
         ],
     ];
 }
