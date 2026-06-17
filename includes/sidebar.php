@@ -55,6 +55,9 @@ $_webRoot = rtrim($_webRoot, '/\\');
 
     <div class="group">
         <h4>My Account</h4>
+        <?php if (can_access('modules')): ?>
+        <a class="nav <?php echo is_active('modules.php'); ?>" href="<?php echo $_webRoot; ?>/user/modules.php"><span>My Modules</span></a>
+        <?php endif; ?>
         <?php if (can_access('profile')): ?>
         <a class="nav <?php echo is_active('profile.php'); ?>" href="<?php echo $_webRoot; ?>/user/profile.php"><span>My Profile</span></a>
         <?php endif; ?>
