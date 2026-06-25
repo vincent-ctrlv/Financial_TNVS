@@ -7,120 +7,8 @@ $user = current_user();
 $role = $user['role'] ?? '';
 
 // Define all possible modules with metadata
-$allModules = [
-    // Main
-    'dashboard' => [
-        'label'       => 'Dashboard',
-        'description' => 'Overview of your financial activity and key metrics.',
-        'icon'        => '📊',
-        'color'       => '#28a745',
-        'bg'          => 'rgba(40,167,69,0.10)',
-        'url_fn'      => fn($root) => "$root/dashboard.php",
-        'group'       => 'Main',
-    ],
-    // Accounts Management
-    'ledger' => [
-        'label'       => 'General Ledger',
-        'description' => 'Complete record of all financial transactions and journal entries.',
-        'icon'        => '📒',
-        'color'       => '#3b82f6',
-        'bg'          => 'rgba(59,130,246,0.10)',
-        'url_fn'      => fn($root) => "$root/modules/ledger.php",
-        'group'       => 'Accounts Management',
-    ],
-    'accounts_receivable' => [
-        'label'       => 'Accounts Receivable',
-        'description' => 'Track money owed to you and manage incoming payments.',
-        'icon'        => '💵',
-        'color'       => '#22c55e',
-        'bg'          => 'rgba(34,197,94,0.10)',
-        'url_fn'      => fn($root) => "$root/modules/accounts_receivable.php",
-        'group'       => 'Accounts Management',
-    ],
-    'accounts_payable' => [
-        'label'       => 'Accounts Payable',
-        'description' => 'Manage your outstanding bills and outgoing payments.',
-        'icon'        => '📤',
-        'color'       => '#8b5cf6',
-        'bg'          => 'rgba(139,92,246,0.10)',
-        'url_fn'      => fn($root) => "$root/modules/accounts_payable.php",
-        'group'       => 'Accounts Management',
-    ],
-    // Financial Operations
-    'disbursement' => [
-        'label'       => 'Disbursement',
-        'description' => 'Record and review all payment disbursements.',
-        'icon'        => '💸',
-        'color'       => '#f59e0b',
-        'bg'          => 'rgba(245,158,11,0.10)',
-        'url_fn'      => fn($root) => "$root/modules/disbursement.php",
-        'group'       => 'Financial Operations',
-    ],
-    'collection' => [
-        'label'       => 'Collection',
-        'description' => 'View and filter your collection statements and accounts.',
-        'icon'        => '🏦',
-        'color'       => '#06b6d4',
-        'bg'          => 'rgba(6,182,212,0.10)',
-        'url_fn'      => fn($root) => "$root/modules/collection.php",
-        'group'       => 'Financial Operations',
-    ],
-    'budget' => [
-        'label'       => 'Budget',
-        'description' => 'Plan and monitor financial budgets across categories.',
-        'icon'        => '📋',
-        'color'       => '#ec4899',
-        'bg'          => 'rgba(236,72,153,0.10)',
-        'url_fn'      => fn($root) => "$root/modules/budget.php",
-        'group'       => 'Financial Operations',
-    ],
-    // Administrative
-    'users' => [
-        'label'       => 'Users Management',
-        'description' => 'Add, edit, and manage system user accounts and roles.',
-        'icon'        => '👥',
-        'color'       => '#ef4444',
-        'bg'          => 'rgba(239,68,68,0.10)',
-        'url_fn'      => fn($root) => "$root/admin/users.php",
-        'group'       => 'Administrative',
-    ],
-    // My Account
-    'profile' => [
-        'label'       => 'My Profile',
-        'description' => 'View and update your personal information and avatar.',
-        'icon'        => '👤',
-        'color'       => '#28a745',
-        'bg'          => 'rgba(40,167,69,0.10)',
-        'url_fn'      => fn($root) => "$root/user/profile.php",
-        'group'       => 'My Account',
-    ],
-    'change_password' => [
-        'label'       => 'Change Password',
-        'description' => 'Update your login credentials to keep your account secure.',
-        'icon'        => '🔐',
-        'color'       => '#8b5cf6',
-        'bg'          => 'rgba(139,92,246,0.10)',
-        'url_fn'      => fn($root) => "$root/user/change_password.php",
-        'group'       => 'My Account',
-    ],
-    'activity' => [
-        'label'       => 'My Activity',
-        'description' => 'A full audit log of every action you have taken in the system.',
-        'icon'        => '📜',
-        'color'       => '#3b82f6',
-        'bg'          => 'rgba(59,130,246,0.10)',
-        'url_fn'      => fn($root) => "$root/user/activity.php",
-        'group'       => 'My Account',
-    ],
-    'my_finances' => [
-        'label'       => 'My Finances',
-        'description' => 'Personal financial summary — receivables, payables, and disbursements.',
-        'icon'        => '💰',
-        'color'       => '#f59e0b',
-        'bg'          => 'rgba(245,158,11,0.10)',
-        'url_fn'      => fn($root) => "$root/user/my_finances.php",
-        'group'       => 'My Account',
-    ],
+$allModules = [];
+
 ];
 
 // Determine web root (same logic as sidebar.php)
@@ -335,10 +223,7 @@ $roleLabel  = match($role) {
                             <style>
                                 #mod-<?php echo htmlspecialchars($slug); ?>::before { background: <?php echo $meta['color']; ?>; }
                             </style>
-                            <div class="mod-card-icon"
-                                 style="background:<?php echo $meta['bg']; ?>;">
-                                <?php echo $meta['icon']; ?>
-                            </div>
+
                             <div class="mod-card-body">
                                 <div class="mod-card-label"
                                      style="color:<?php echo $meta['color']; ?>">
