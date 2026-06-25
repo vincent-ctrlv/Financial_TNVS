@@ -46,13 +46,6 @@ $_webRoot = rtrim($_webRoot, '/\\');
         <?php endif; ?>
     </div>
     
-    <?php if (can_access('users')): ?>
-    <div class="group">
-        <h4>Administrative System</h4>
-        <a class="nav <?php echo is_active('users.php'); ?>" href="<?php echo $_webRoot; ?>/admin/users.php"><span>Users Management</span></a>
-    </div>
-    <?php endif; ?>
-
     <div class="group">
         <h4>My Account</h4>
         <?php if (can_access('modules')): ?>

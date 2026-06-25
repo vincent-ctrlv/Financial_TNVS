@@ -273,11 +273,35 @@ select:focus, select.input:focus {
 }
 
 /* App Layout */
-.app { 
-  display: grid; 
-  grid-template-columns: 300px 1fr; 
-  min-height: 100vh; 
+.app {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  min-height: 100vh;
   transition: grid-template-columns var(--transition-slow);
+}
+
+/* Mobile responsive layout */
+@media (max-width: 900px) {
+  .app {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    position: fixed;
+    top: var(--header-h);
+    left: -300px;
+    width: 260px;
+    height: calc(100vh - var(--header-h));
+    background: var(--panel);
+    box-shadow: 4px 0 15px rgba(0,0,0,0.05);
+    transition: left var(--transition-normal);
+    z-index: 950;
+  }
+  .sidebar.open {
+    left: 0;
+  }
+  .overlay.show {
+    display: block; /* ensure overlay visible */
+  }
 }
 
 .app.sidebar-collapsed {
@@ -328,10 +352,10 @@ select:focus, select.input:focus {
   transition: filter var(--transition-normal);
 }
 
-.sidebar { 
-  background: #fdfdfd; 
-  border-right: 1px solid rgba(0,0,0,0.03); 
-  padding: 24px 12px; 
+.sidebar {
+  background: #fdfdfd;
+  border-right: 1px solid rgba(0,0,0,0.03);
+  padding: 24px 12px;
   box-shadow: 4px 0 15px rgba(0,0,0,0.02);
   transition: all var(--transition-slow);
   position: sticky;
@@ -344,6 +368,9 @@ select:focus, select.input:focus {
   flex-direction: column;
   z-index: 901;
 }
+
+/* Adjust sidebar for mobile (overridden in media query above) */
+
 
 .sidebar .group {
   margin-bottom: 28px;
