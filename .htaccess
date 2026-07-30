@@ -7,7 +7,7 @@ Options -Indexes
     
     # Block access to specific directories containing backend code or sensitive data
     # We DO NOT block 'assets' here because the browser needs to load CSS/JS images.
-    RewriteRule ^(database|auth|includes|modules)(/.*)?$ - [F,L]
+    RewriteRule ^(database|includes)(/.*)?$ - [F,L]
     
     # Block access to hidden files/directories (like .env, .git)
     RewriteRule ^\.(env|git|gitignore) - [F,L]
