@@ -29,14 +29,3 @@ yarn-error.log*
 # Database backups (except the core schema in database folder)
 *.sql
 !database/finance-1.sql
-
-database/
-auth/
-assets/
-includes/
-user/
-create_driver_seed.php
-dashboard.php
-index.php
-admin/
-modules/
