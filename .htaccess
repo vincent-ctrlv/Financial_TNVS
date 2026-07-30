@@ -1,0 +1,23 @@
+# Disable directory listing (prevents users from seeing a list of your files)
+Options -Indexes
+
+# Block direct web access to sensitive directories and files
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Block access to specific directories containing backend code or sensitive data
+    # We DO NOT block 'assets' here because the browser needs to load CSS/JS images.
+    RewriteRule ^(database|auth|includes|modules)(/.*)?$ - [F,L]
+    
+    # Block access to hidden files/directories (like .env, .git)
+    RewriteRule ^\.(env|git|gitignore) - [F,L]
+    
+    # Block access to markdown and SQL files directly
+    RewriteRule \.(md|sql|log)$ - [F,L]
+</IfModule>
+
+# Alternate rule for blocking .env files just in case mod_rewrite is off
+<FilesMatch "^\.env">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
