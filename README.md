@@ -1,7 +1,5 @@
 #  SakaySaya - TNVS Finance 
 
-![SakaySaya Landing Page](<img width="1505" height="732" alt="image" src="https://github.com/user-attachments/assets/ae1ee795-b9fd-4359-ab11-29c934c73d92" />
-)
 
 SakaySaya is a premium financial management and dashboard suite designed specifically for the Transport Network Vehicle Service (TNVS) sector. It allows drivers, finance staff, and administrators to track fares, manage leases, process disbursements, audit transactions, and verify user credentials in real-time.
 
