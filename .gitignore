@@ -28,12 +28,4 @@ yarn-error.log*
 
 # Database backups (except the core schema in database folder)
 *.sql
-
-admin/
-auth/
-includes/
-user/
-modules/
-dashboard.php
-create_driver_seed.php
-database/
+!database/*.sql
