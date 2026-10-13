@@ -1,31 +1,27 @@
-# Local environment files
+# Local environment files (real credentials)
 .env
 .env.local
 .env.*.local
 
-# XAMPP / OS specific files
+# Composer dependencies (run `composer install`)
+/vendor/
+
+# User uploads (keep the folders, not the files)
+/public/uploads/avatars/*
+!/public/uploads/avatars/.gitkeep
+
+# Logs
+*.log
+
+# Database dumps (only the schema is committed)
+*.sql
+!/database/schema.sql
+
+# OS / editor files
 Thumbs.db
 .DS_Store
 ehthumbs.db
 [Dd]esktop.ini
-
-# IDEs / Editors
 .vscode/
 .idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
 *.sw?
-
-# Temporary uploads / logs
-uploads/*
-!uploads/.gitkeep
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Database backups (except the core schema in database folder)
-*.sql
-!database/*.sql

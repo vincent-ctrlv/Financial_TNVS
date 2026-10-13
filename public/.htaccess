@@ -1,0 +1,8 @@
+# Disable directory listing
+Options -Indexes
+DirectoryIndex index.php
+
+# Block hidden files (.htaccess, .git, ...)
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>

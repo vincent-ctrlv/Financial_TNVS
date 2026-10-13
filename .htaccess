@@ -1,23 +1,10 @@
-# Disable directory listing (prevents users from seeing a list of your files)
+# Serve the app from public/. Everything else in this folder (src/, database/,
+# vendor/, .env) is never reachable from the browser.
+# If your web server's document root already points at public/, this file is unused.
 Options -Indexes
 
-# Block direct web access to sensitive directories and files
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    
-    # Block access to specific directories containing backend code or sensitive data
-    # We DO NOT block 'assets' here because the browser needs to load CSS/JS images.
-    RewriteRule ^(database|includes)(/.*)?$ - [F,L]
-    
-    # Block access to hidden files/directories (like .env, .git)
-    RewriteRule ^\.(env|git|gitignore) - [F,L]
-    
-    # Block access to markdown and SQL files directly
-    RewriteRule \.(md|sql|log)$ - [F,L]
+    RewriteCond %{REQUEST_URI} !/public/
+    RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
-
-# Alternate rule for blocking .env files just in case mod_rewrite is off
-<FilesMatch "^\.env">
-    Order allow,deny
-    Deny from all
-</FilesMatch>
